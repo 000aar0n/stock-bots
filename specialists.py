@@ -31,7 +31,7 @@ SPECIALISTS = {
                 "tickers": ["NVDA", "AVGO", "AMD", "MU", "SMCI", "INTC",
                             "MRVL", "QCOM", "TXN", "AMAT", "LRCX", "KLAC",
                             "ADI", "TSM", "ARM", "ASML", "ANET", "CDNS",
-                            "SNPS", "SNDK"]},
+                            "SNPS", "SNDK", "LOGI", "CRSR"]},
     "STACK": {"sector": "big tech and software",
               "tickers": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "PLTR",
                           "NOW", "CRM", "ORCL", "ADBE", "CSCO", "PANW",

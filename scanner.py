@@ -48,7 +48,7 @@ OUT_DIR = os.path.join(HERE, "output")
 UNIVERSE = {
     "tech": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "PLTR", "NOW", "CRM",
              "ORCL", "ADBE", "CSCO", "PANW", "CRWD", "SNOW", "NET", "DDOG",
-             "IBM", "AKAM"],
+             "IBM", "AKAM", "LOGI", "CRSR"],
     "semis": ["NVDA", "AVGO", "AMD", "MU", "SMCI", "INTC", "MRVL", "QCOM",
               "TXN", "AMAT", "LRCX", "KLAC", "ADI", "TSM", "ARM", "ASML",
               "ANET", "CDNS", "SNPS", "SNDK"],

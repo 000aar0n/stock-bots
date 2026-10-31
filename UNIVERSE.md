@@ -2,7 +2,7 @@
 
 Aaron's order: "Make the fence pretty wide but not like too much of
 penny stocks." The standing covered universe in scanner.py grew
-from 55 to **148 unique names**. Every covered name gets a WATCHER,
+from 55 to **150 unique names**. Every covered name gets a WATCHER,
 a SHADOW, and two RIVAL bots (RAIDER breakout, ANCHOR mean
 reversion) minted by bot_factory.py, plus sector patch coverage.
 
@@ -24,10 +24,10 @@ see them; no watcher, shadow, rival or sniper is minted on them):
 
 The list lives in scanner.py as EXCLUDED_PENNY next to UNIVERSE.
 
-## The 148, by group (scanner.py UNIVERSE)
+## The 150, by group (scanner.py UNIVERSE)
 
-- tech (18): AAPL MSFT GOOGL AMZN META PLTR NOW CRM ORCL ADBE CSCO
-  PANW CRWD SNOW NET DDOG IBM AKAM
+- tech (20): AAPL MSFT GOOGL AMZN META PLTR NOW CRM ORCL ADBE CSCO
+  PANW CRWD SNOW NET DDOG IBM AKAM LOGI CRSR
 - semis (20): NVDA AVGO AMD MU SMCI INTC MRVL QCOM TXN AMAT LRCX
   KLAC ADI TSM ARM ASML ANET CDNS SNPS SNDK
 - crypto_fintech (9): COIN MSTR RIOT HOOD SOFI MARA CLSK PYPL AFRM
@@ -48,4 +48,10 @@ The list lives in scanner.py as EXCLUDED_PENNY next to UNIVERSE.
   was delisted after its acquisition, its chart feed is dead)
 - pairs_watch (KO, PEP; already counted in retail)
 
-Total unique: 148 (was 55; 93 added).
+Total unique: 150 (was 55; 95 added).
+
+Founder's exception (Sat Oct 31, 2026): CRSR (Corsair Gaming) is a
+small cap trading near the penny fence line, covered anyway by
+Aaron's direct order ("Also watch logi and Corsair"). It is NOT in
+EXCLUDED_PENNY. LOGI (Logitech) and CRSR both sit in the tech group
+and report to the CIRCUIT patch (hardware), not STACK.
