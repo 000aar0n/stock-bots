@@ -3,8 +3,10 @@
 
 Reads the live registry (output/bots.json) and the sector patches in
 specialists.py, assigns every bot to exactly one city zone, and writes
-a single self-contained cyber city HTML page: no external assets, no
-account names, no credentials, no portfolio values.
+a cyber city HTML page whose hero is a real 3D rendered city
+(Three.js via CDN, the only external reference allowed): one building
+per bot in 13 sector districts. No account names, no credentials, no
+portfolio values anywhere on the page.
 
 Performance wiring (Aaron, Sat Oct 31, 2026): every bot row also shows
 its record from the city's real stores, read at build time:
@@ -263,6 +265,74 @@ def bot_card(bot, idx, zone_id, perf=""):
         f'<p class="strat">{strat}</p>{watch}{perf}</article>')
 
 
+
+# ---------------------------------------------------------------------------
+# 3D city layout (deterministic; recomputed from the registry every build)
+# ---------------------------------------------------------------------------
+import hashlib
+import math
+
+KIND_HEIGHT = {
+    "staff": 30.0, "captain": 34.0, "specialist": 24.0,
+    "thermometer": 20.0, "pair": 16.0, "strategist": 19.0,
+    "sniper": 15.0, "watcher": 11.0, "shadow": 11.0, "rival": 12.0,
+    "handcrafted": 20.0,
+}
+CITY_COLS, CITY_PITCH, CITY_PLOT = 4, 78.0, 64.0
+
+
+def _hash01(name, salt=""):
+    digest = hashlib.md5((salt + name).encode()).hexdigest()
+    return (int(digest[:8], 16) % 1000) / 1000.0
+
+
+def book_label(bot):
+    hold = bot.get("hold_style") or ""
+    return {"intraday": "DAY BOOK", "swing": "LONG BOOK"}.get(
+        hold, "CITY STAFF" if hold in ("", "none") else hold.upper())
+
+
+def watch_str(bot):
+    wl = bot.get("watchlist") or []
+    if not wl:
+        return ""
+    shown = ", ".join(wl[:8])
+    if len(wl) > 8:
+        shown += f" +{len(wl) - 8} more"
+    return shown
+
+
+def city_layout(zones):
+    """Place the 13 districts on a 4x4 block grid and give every bot a
+    building: position inside its district plot, footprint, height by
+    kind with a per name hash variation, and a color shade factor.
+    Returns (districts, placements) with placements keyed by bot idx."""
+    districts, placements = [], {}
+    for k, (zid, _label, _sub, _color) in enumerate(ZONES):
+        cx = (k % CITY_COLS - (CITY_COLS - 1) / 2) * CITY_PITCH
+        cz = (k // CITY_COLS - (CITY_COLS - 1) / 2) * CITY_PITCH
+        members = sorted(zones[zid], key=lambda x: x[1]["name"])
+        n = len(members)
+        grid = max(1, math.ceil(math.sqrt(n)))
+        cell = (CITY_PLOT - 8) / grid
+        footprint = round(cell * 0.66, 2)
+        for j, (idx, bot) in enumerate(members):
+            gx, gz = j % grid, j // grid
+            x = (cx - (CITY_PLOT - 8) / 2 + cell * (gx + 0.5)
+                 + (_hash01(bot["name"], "x") - 0.5) * cell * 0.16)
+            z = (cz - (CITY_PLOT - 8) / 2 + cell * (gz + 0.5)
+                 + (_hash01(bot["name"], "z") - 0.5) * cell * 0.16)
+            base = KIND_HEIGHT.get(bot["kind"], 12.0)
+            placements[idx] = {
+                "x": round(x, 2), "z": round(z, 2), "w": footprint,
+                "h": round(base * (0.72 + 0.75 * _hash01(bot["name"], "h")), 1),
+                "s": round(0.72 + 0.5 * _hash01(bot["name"], "s"), 3),
+            }
+        districts.append({"id": zid, "cx": cx, "cz": cz,
+                          "pw": CITY_PLOT, "count": n})
+    return districts, placements
+
+
 CSS = """
 :root{
   --bg:#05070f; --bg2:#0a0e1f; --panel:#0b1122; --line:#1c2a4a;
@@ -280,15 +350,6 @@ h1{font-size:clamp(34px,6vw,58px);letter-spacing:.14em;font-weight:800;
   -webkit-background-clip:text;background-clip:text;color:transparent;
   filter:drop-shadow(0 0 14px rgba(34,211,238,.35))}
 .tagline{color:var(--dim);letter-spacing:.32em;font-size:12px;text-transform:uppercase;margin-top:6px}
-.skyline{display:flex;align-items:flex-end;gap:3px;height:74px;margin:26px auto 0;max-width:900px;
-  border-bottom:2px solid #1e3a5f}
-.skyline i{flex:1;background:linear-gradient(180deg,#0d1836,#081026);border:1px solid #1c2f57;border-bottom:none;
-  position:relative}
-.skyline i::after{content:"";position:absolute;inset:4px 3px;
-  background-image:radial-gradient(circle 1.6px at 4px 6px,rgba(250,204,21,.85) 98%,transparent),
-                   radial-gradient(circle 1.6px at 10px 16px,rgba(34,211,238,.8) 98%,transparent),
-                   radial-gradient(circle 1.6px at 6px 28px,rgba(244,114,182,.75) 98%,transparent);
-  background-size:14px 22px;opacity:.8}
 .stats{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:22px 0 6px}
 .chip{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:8px 16px;
   font-size:13px;letter-spacing:.06em}
@@ -298,12 +359,12 @@ h1{font-size:clamp(34px,6vw,58px);letter-spacing:.14em;font-weight:800;
   background:linear-gradient(90deg,rgba(129,140,248,.13),rgba(232,121,249,.10));padding:13px 18px;
   text-align:center;font-size:14px;letter-spacing:.03em}
 .law b{color:#e879f9}.law .day{color:#22d3ee}.law .long{color:#4ade80}
-.searchbar{max-width:640px;margin:22px auto 6px;position:relative}
+.searchbar{max-width:640px;margin:22px auto 6px;position:relative;z-index:20}
 .searchbar input{width:100%;padding:13px 18px;border-radius:12px;border:1px solid var(--line);
   background:#0a1122;color:var(--txt);font-size:16px;outline:none}
 .searchbar input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.18)}
 #results{display:none;margin-top:8px;background:var(--panel);border:1px solid var(--line);
-  border-radius:12px;overflow:hidden;max-height:330px;overflow-y:auto}
+  border-radius:12px;overflow:hidden;max-height:330px;overflow-y:auto;text-align:left}
 #results.open{display:block}
 #results button{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;
   background:none;border:none;border-bottom:1px solid #131e38;color:var(--txt);
@@ -311,7 +372,43 @@ h1{font-size:clamp(34px,6vw,58px);letter-spacing:.14em;font-weight:800;
 #results button:hover{background:#101a33}
 #results .z{color:var(--dim);font-size:12px;letter-spacing:.05em}
 #results .none{padding:12px 16px;color:var(--dim);font-size:14px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:14px;margin-top:26px}
+/* --- 3D city stage --- */
+#stage{position:relative;height:min(76vh,740px);min-height:460px;margin-top:24px;
+  border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#04060d;
+  box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 42px -12px rgba(34,211,238,.25)}
+#stage canvas{display:block}
+#cityhint{position:absolute;left:14px;bottom:12px;z-index:4;color:#a9bcdf;font-size:12px;
+  letter-spacing:.1em;text-transform:uppercase;text-shadow:0 1px 6px #000;pointer-events:none}
+#tooltip{position:absolute;display:none;z-index:8;pointer-events:none;background:rgba(6,10,24,.94);
+  border:1px solid var(--cyan);border-radius:8px;padding:5px 10px;font-size:12.5px;
+  letter-spacing:.04em;color:var(--txt);white-space:nowrap;box-shadow:0 4px 18px rgba(0,0,0,.6)}
+#tooltip .tz{color:var(--dim);font-size:11px;margin-left:6px}
+#cityfallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  text-align:center;padding:24px;color:var(--dim);font-size:14px;letter-spacing:.06em;
+  background:rgba(4,6,13,.6);z-index:3}
+#sidepanel{position:absolute;top:0;right:0;z-index:6;width:min(372px,94%);height:100%;
+  background:rgba(7,11,24,.94);backdrop-filter:blur(8px);border-left:1px solid var(--line);
+  transform:translateX(106%);transition:transform .32s ease;display:flex;flex-direction:column}
+#sidepanel.open{transform:none}
+.sp-head{padding:16px 18px 10px;border-bottom:1px solid var(--line)}
+.sp-head h2{font-size:21px;line-height:1.25}
+.sp-head .sub{font-size:11px;letter-spacing:.18em;text-transform:uppercase;margin-top:4px}
+.sp-head .meta{color:var(--dim);font-size:12.5px;margin-top:6px}
+#spclose{position:absolute;top:10px;right:12px;background:none;border:1px solid var(--line);
+  color:var(--txt);border-radius:8px;width:32px;height:32px;font-size:16px;cursor:pointer;line-height:1}
+#spclose:hover{border-color:var(--cyan)}
+#botdetail{padding:12px 18px 0}
+#botlist{overflow-y:auto;padding:12px 14px 18px;display:flex;flex-direction:column;gap:8px}
+.prow{background:#0a1226;border:1px solid #16233f;border-radius:10px;padding:10px 12px;cursor:pointer}
+.prow:hover{border-color:#2b4470}
+.prow.flash{border-color:#facc15;box-shadow:0 0 0 2px #facc15,0 0 22px -2px #facc15}
+.prow .bot-name{font-size:14px}
+.prow .strat{font-size:12.5px}
+.prow .perf{font-size:11px}
+/* --- plain HTML directory (fallback + full listing) --- */
+.dirhead{margin:38px 0 4px;font-size:15px;letter-spacing:.26em;color:var(--dim);
+  text-transform:uppercase;text-align:center}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:14px;margin-top:18px}
 .tile{--zc:#22d3ee;background:linear-gradient(160deg,#0c1428,#080d1c);border:1px solid var(--line);
   border-top:3px solid var(--zc);border-radius:14px;padding:18px;cursor:pointer;text-align:left;
   color:var(--txt);font:inherit;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;width:100%}
@@ -358,10 +455,14 @@ footer{margin-top:44px;text-align:center;color:var(--dim);font-size:12px;letter-
 @media (max-width:640px){
   .grid{grid-template-columns:1fr}
   .bots{grid-template-columns:1fr}
-  .skyline{height:52px}
   header{padding-top:26px}
+  #stage{height:62vh;min-height:400px}
+  #sidepanel{width:100%;height:58%;top:auto;bottom:0;transform:translateY(106%);
+    border-left:none;border-top:1px solid var(--line)}
+  #sidepanel.open{transform:none}
 }
 """
+
 
 JS = """
 const panels={};document.querySelectorAll('.panel').forEach(p=>panels[p.id]=p);
@@ -375,7 +476,10 @@ function openZone(id,scroll){
   panels[id].classList.add('open');current=id;
   if(scroll!==false)panels[id].scrollIntoView({behavior:'smooth',block:'start'});
 }
-document.querySelectorAll('.tile').forEach(t=>t.addEventListener('click',()=>openZone(t.dataset.zone)));
+document.querySelectorAll('.tile').forEach(t=>t.addEventListener('click',()=>{
+  openZone(t.dataset.zone);
+  if(window.__selectDistrict)window.__selectDistrict(t.dataset.zone);
+}));
 const idx=JSON.parse(document.getElementById('bot-index').textContent);
 const input=document.getElementById('q'),box=document.getElementById('results');
 input.addEventListener('input',()=>{
@@ -393,10 +497,365 @@ input.addEventListener('input',()=>{
     const el=document.getElementById('bot-'+b.i);
     setTimeout(()=>{el.scrollIntoView({behavior:'smooth',block:'center'});
       el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),2600);},80);
+    if(window.__flyToBot)window.__flyToBot(b.i);
   }));
 });
 document.addEventListener('click',e=>{if(!e.target.closest('.searchbar'))box.classList.remove('open');});
 openZone('civic',false);
+"""
+
+# The 3D city. Three.js and OrbitControls load from the jsDelivr CDN;
+# those two module URLs are the only external references on the page.
+THREE_JS = r'''
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const DATA = JSON.parse(document.getElementById('city-data').textContent);
+const stage = document.getElementById('stage');
+const tooltip = document.getElementById('tooltip');
+const panel = document.getElementById('sidepanel');
+const botlist = document.getElementById('botlist');
+const botdetail = document.getElementById('botdetail');
+const ZONE = {}; DATA.districts.forEach(d => { ZONE[d.id] = d; });
+const BOT = {}; DATA.bots.forEach(b => { BOT[b.i] = b; });
+
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function cardHTML(b){
+  return '<article class="prow" data-i="' + b.i + '">' +
+    '<div class="bot-name">' + esc(b.name) + '</div>' +
+    '<div class="badges"><span class="badge kind">' + esc(b.kind) + '</span>' +
+    '<span class="badge hold-' + esc(b.hold) + '">' + esc(b.book) + '</span></div>' +
+    '<p class="strat">' + esc(b.strat) + '</p>' +
+    (b.watch ? '<div class="watch">' + esc(b.watch) + '</div>' : '') +
+    b.perf + '</article>';
+}
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+} catch(e) {
+  document.getElementById('cityfallback').style.display = 'flex';
+  throw e;
+}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(stage.clientWidth, stage.clientHeight);
+stage.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x04060d);
+scene.fog = new THREE.FogExp2(0x05070f, 0.0013);
+
+const camera = new THREE.PerspectiveCamera(46, stage.clientWidth / stage.clientHeight, 0.5, 3000);
+camera.position.set(172, 150, 214);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 2, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.maxPolarAngle = 1.45;
+controls.minDistance = 14;
+controls.maxDistance = 640;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.55;
+
+/* --- textures --- */
+function makeWindowTexture(){
+  const c = document.createElement('canvas'); c.width = 96; c.height = 192;
+  const g = c.getContext('2d');
+  g.fillStyle = '#070b1a'; g.fillRect(0, 0, 96, 192);
+  let seed = 987654321;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 6; x++) {
+    const r = rnd();
+    if (r < 0.52) g.fillStyle = rnd() < 0.6 ? 'rgba(255,214,140,0.95)' : 'rgba(170,225,255,0.95)';
+    else g.fillStyle = 'rgba(15,23,46,1)';
+    g.fillRect(6 + x * 15, 8 + y * 11.5, 9, 6.5);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function makeGlowTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const gr = g.createRadialGradient(64, 64, 2, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(255,255,255,0.85)');
+  gr.addColorStop(0.4, 'rgba(255,255,255,0.26)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+}
+function makeLabelSprite(d){
+  const c = document.createElement('canvas'); c.width = 640; c.height = 160;
+  const g = c.getContext('2d');
+  g.beginPath();
+  if (g.roundRect) g.roundRect(12, 28, 616, 104, 26); else g.rect(12, 28, 616, 104);
+  g.fillStyle = 'rgba(4,8,20,0.78)'; g.fill();
+  g.lineWidth = 3; g.strokeStyle = d.color; g.stroke();
+  g.textAlign = 'center';
+  let fs = 46;
+  g.font = '700 ' + fs + 'px "Avenir Next","Segoe UI",sans-serif';
+  while (g.measureText(d.label).width > 580 && fs > 22) { fs -= 2; g.font = '700 ' + fs + 'px "Avenir Next","Segoe UI",sans-serif'; }
+  g.fillStyle = '#eaf2ff';
+  g.fillText(d.label, 320, 84);
+  g.font = '600 29px "Avenir Next","Segoe UI",sans-serif';
+  g.fillStyle = d.color;
+  g.fillText(d.count + ' BOTS', 320, 121);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:t, transparent:true, depthWrite:false }));
+  sp.scale.set(42, 10.5, 1);
+  sp.position.set(d.cx, 58, d.cz);
+  sp.userData.zone = d.id;
+  return sp;
+}
+
+const winTex = makeWindowTexture();
+const glowTex = makeGlowTexture();
+
+/* --- ground, streets grid, stars --- */
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(760, 760),
+  new THREE.MeshBasicMaterial({ color: 0x04060d }));
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.05;
+scene.add(ground);
+const grid = new THREE.GridHelper(624, 78, 0x1e3a5f, 0x0c1730);
+grid.position.y = 0.02;
+grid.material.transparent = true;
+grid.material.opacity = 0.5;
+scene.add(grid);
+(function addStars(){
+  const pts = [];
+  for (let i = 0; i < 700; i++) {
+    const a = Math.random() * Math.PI * 2, e = Math.random() * Math.PI * 0.48 + 0.05, r = 640;
+    pts.push(Math.cos(a) * Math.cos(e) * r, Math.sin(e) * r, Math.sin(a) * Math.cos(e) * r);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  const stars = new THREE.Points(geo, new THREE.PointsMaterial({
+    color: 0x8fb8ff, size: 1.7, sizeAttenuation: false,
+    transparent: true, opacity: 0.75, fog: false }));
+  scene.add(stars);
+})();
+
+/* --- districts: plots, borders, glow, labels, buildings --- */
+const pickMeshes = [];    // InstancedMesh per district (raycast: buildings)
+const pickTargets = [];   // buildings + plots + labels (raycast: clicks)
+DATA.districts.forEach(d => {
+  const plot = new THREE.Mesh(
+    new THREE.PlaneGeometry(d.pw + 6, d.pw + 6),
+    new THREE.MeshBasicMaterial({ color: d.color, transparent: true, opacity: 0.09, depthWrite: false }));
+  plot.rotation.x = -Math.PI / 2;
+  plot.position.set(d.cx, 0.05, d.cz);
+  plot.userData.zone = d.id;
+  scene.add(plot); pickTargets.push(plot);
+
+  const h = d.pw / 2 + 3;
+  const borderPts = [
+    new THREE.Vector3(-h, 0, -h), new THREE.Vector3(h, 0, -h),
+    new THREE.Vector3(h, 0, h), new THREE.Vector3(-h, 0, h)];
+  const border = new THREE.LineLoop(
+    new THREE.BufferGeometry().setFromPoints(borderPts),
+    new THREE.LineBasicMaterial({ color: d.color, transparent: true, opacity: 0.85 }));
+  border.position.set(d.cx, 0.08, d.cz);
+  scene.add(border);
+
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTex, color: d.color, transparent: true, opacity: 0.15, depthWrite: false }));
+  glow.scale.set(d.pw * 1.7, d.pw * 1.7, 1);
+  glow.position.set(d.cx, 3, d.cz);
+  scene.add(glow);
+
+  const label = makeLabelSprite(d);
+  scene.add(label); pickTargets.push(label);
+
+  const bots = DATA.bots.filter(b => b.zone === d.id);
+  const geo = new THREE.BoxGeometry(1, 1, 1);
+  geo.translate(0, 0.5, 0);
+  const im = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ map: winTex }), bots.length);
+  const m4 = new THREE.Matrix4(), pv = new THREE.Vector3(),
+        q = new THREE.Quaternion(), sc = new THREE.Vector3();
+  const base = new THREE.Color(d.color);
+  bots.forEach((b, j) => {
+    pv.set(b.x, 0, b.z); sc.set(b.w, b.h, b.w);
+    m4.compose(pv, q, sc);
+    im.setMatrixAt(j, m4);
+    b._base = base.clone().multiplyScalar(b.s);
+    im.setColorAt(j, b._base);
+    b._mesh = im; b._inst = j;
+  });
+  im.instanceMatrix.needsUpdate = true;
+  if (im.instanceColor) im.instanceColor.needsUpdate = true;
+  im.userData.zone = d.id;
+  im.userData.bots = bots;
+  scene.add(im); pickMeshes.push(im); pickTargets.push(im);
+});
+
+/* --- camera flight + selection --- */
+let tween = null;
+function flyTo(px, py, pz, tx, ty, tz, dur){
+  tween = { p0: camera.position.clone(), p1: new THREE.Vector3(px, py, pz),
+            t0: controls.target.clone(), t1: new THREE.Vector3(tx, ty, tz),
+            start: performance.now(), dur: dur || 1100 };
+}
+controls.addEventListener('start', () => { controls.autoRotate = false; tween = null; });
+
+let flash = null;
+const tmpC = new THREE.Color(), whiteC = new THREE.Color(0xffffff);
+function setInstColor(b, col){
+  b._mesh.setColorAt(b._inst, col);
+  if (b._mesh.instanceColor) b._mesh.instanceColor.needsUpdate = true;
+}
+function flashBot(b){
+  if (flash) setInstColor(flash.bot, flash.bot._base);
+  flash = { bot: b, until: performance.now() + 2600 };
+}
+
+let selectedZone = null;
+function selectZone(zoneId, focusIdx){
+  selectedZone = zoneId;
+  const d = ZONE[zoneId];
+  document.getElementById('sp-title').textContent = d.label;
+  const sub = document.getElementById('sp-sub');
+  sub.textContent = d.sub; sub.style.color = d.color;
+  document.getElementById('sp-meta').textContent =
+    d.count + ' bots in this district · click a building or a row for the bot card';
+  const bots = DATA.bots.filter(b => b.zone === zoneId)
+    .sort((a, b) => a.name < b.name ? -1 : 1);
+  botlist.innerHTML = bots.map(cardHTML).join('');
+  botdetail.innerHTML = '';
+  panel.classList.add('open');
+  const len = Math.hypot(d.cx, d.cz) || 1;
+  const ux = d.cx / len, uz = d.cz / len;
+  flyTo(d.cx + ux * 92, 72, d.cz + uz * 92, d.cx, 4, d.cz, 1150);
+  if (focusIdx != null) showBot(focusIdx, false);
+}
+function showBot(i, fly){
+  const b = BOT[i]; if (!b) return;
+  if (b.zone !== selectedZone) { selectZone(b.zone, i); return; }
+  botdetail.innerHTML = cardHTML(b);
+  botlist.querySelectorAll('.prow').forEach(r => r.classList.remove('flash'));
+  const row = botlist.querySelector('[data-i="' + i + '"]');
+  if (row) {
+    row.classList.add('flash');
+    row.scrollIntoView({ block: 'center' });
+    setTimeout(() => row.classList.remove('flash'), 2600);
+  }
+  flashBot(b);
+  if (fly !== false) flyTo(b.x + 30, 30, b.z + 30, b.x, b.h * 0.55, b.z, 1000);
+}
+botlist.addEventListener('click', e => {
+  const row = e.target.closest('.prow'); if (!row) return;
+  showBot(+row.dataset.i);
+});
+botdetail.addEventListener('click', e => {
+  const row = e.target.closest('.prow'); if (!row) return;
+  showBot(+row.dataset.i);
+});
+document.getElementById('spclose').addEventListener('click', () => panel.classList.remove('open'));
+
+/* --- picking: click a building, a plot, or a label; hover tooltip --- */
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+function setNDC(e){
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+  ndc.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+}
+let downX = 0, downY = 0;
+renderer.domElement.addEventListener('pointerdown', e => { downX = e.clientX; downY = e.clientY; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
+  setNDC(e);
+  ray.setFromCamera(ndc, camera);
+  const hits = ray.intersectObjects(pickTargets, false);
+  if (!hits.length) return;
+  const h = hits[0];
+  if (h.object.isInstancedMesh && h.instanceId !== undefined) {
+    const b = h.object.userData.bots[h.instanceId];
+    selectZone(b.zone);
+    showBot(b.i);
+  } else if (h.object.userData && h.object.userData.zone) {
+    controls.autoRotate = false;
+    selectZone(h.object.userData.zone);
+  }
+});
+let hoverEvt = null;
+renderer.domElement.addEventListener('pointermove', e => {
+  hoverEvt = e;
+  const r = stage.getBoundingClientRect();
+  tooltip.style.left = (e.clientX - r.left + 14) + 'px';
+  tooltip.style.top = (e.clientY - r.top + 12) + 'px';
+});
+renderer.domElement.addEventListener('pointerleave', () => { hoverEvt = null; tooltip.style.display = 'none'; });
+
+window.addEventListener('resize', () => {
+  const w = stage.clientWidth, hgt = stage.clientHeight;
+  camera.aspect = w / hgt;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, hgt);
+});
+
+/* --- main loop --- */
+function animate(){
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  if (tween) {
+    let k = (now - tween.start) / tween.dur; if (k > 1) k = 1;
+    const e = 1 - Math.pow(1 - k, 3);
+    camera.position.lerpVectors(tween.p0, tween.p1, e);
+    controls.target.lerpVectors(tween.t0, tween.t1, e);
+    if (k === 1) tween = null;
+  }
+  if (flash) {
+    if (now > flash.until) { setInstColor(flash.bot, flash.bot._base); flash = null; }
+    else {
+      const p = 0.5 + 0.5 * Math.sin(now / 160);
+      tmpC.setHex(0xfacc15).lerp(whiteC, p * 0.45);
+      setInstColor(flash.bot, tmpC);
+    }
+  }
+  if (hoverEvt) {
+    setNDC(hoverEvt);
+    ray.setFromCamera(ndc, camera);
+    const hits = ray.intersectObjects(pickMeshes, false);
+    if (hits.length && hits[0].instanceId !== undefined) {
+      const b = hits[0].object.userData.bots[hits[0].instanceId];
+      tooltip.innerHTML = esc(b.name) + '<span class="tz">' + esc(ZONE[b.zone].label) + '</span>';
+      tooltip.style.display = 'block';
+      renderer.domElement.style.cursor = 'pointer';
+    } else {
+      tooltip.style.display = 'none';
+      renderer.domElement.style.cursor = '';
+    }
+    hoverEvt = null;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+window.__cityReady = true;
+window.__flyToBot = function(i){
+  const b = BOT[i]; if (!b) return;
+  controls.autoRotate = false;
+  selectZone(b.zone);
+  showBot(i);
+};
+window.__selectDistrict = function(z){
+  if (!ZONE[z]) return;
+  controls.autoRotate = false;
+  selectZone(z);
+};
+'''
+
+IMPORTMAP = """
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
 """
 
 
@@ -417,21 +876,43 @@ def main():
     bots_with_calls = sum(1 for s in live_st.values()
                           if s.get("calls", 0) > 0)
 
-    zones = {zid: [] for zid in ZONE_IDS}          # zone -> [(idx, bot, sub)]
+    zones = {zid: [] for zid in ZONE_IDS}          # zone -> [(idx, bot)]
+    zone_of = {}
     artisan_subs = {}                                # sub zone id or None -> [...]
     for idx, bot in enumerate(bots):
         zid, sub = assign(bot)
         zones[zid].append((idx, bot))
+        zone_of[idx] = zid
         if zid == "artisan":
             artisan_subs.setdefault(sub, []).append((idx, bot))
 
     assert sum(len(v) for v in zones.values()) == total, "assignment leak"
 
-    # skyline: deterministic pseudo-random building heights
-    heights = [38, 62, 45, 70, 30, 55, 66, 41, 74, 35, 58, 48, 69, 33, 60,
-               44, 71, 39, 52, 64, 36, 57, 68, 42, 50, 73, 31, 59, 47, 65]
-    skyline = "".join(f'<i style="height:{h}%"></i>' for h in heights)
+    # --- 3D city data ---
+    districts_geo, placements = city_layout(zones)
+    zone_meta = {zid: (label, sub, color) for zid, label, sub, color in ZONES}
+    city_districts = []
+    for d in districts_geo:
+        label, sub, color = zone_meta[d["id"]]
+        city_districts.append({
+            "id": d["id"], "label": label, "sub": sub, "color": color,
+            "cx": d["cx"], "cz": d["cz"], "pw": d["pw"],
+            "count": d["count"]})
+    city_bots = []
+    for idx, bot in enumerate(bots):
+        city_bots.append({
+            "i": idx, "name": bot["name"], "kind": bot["kind"],
+            "hold": bot.get("hold_style") or "none",
+            "book": book_label(bot),
+            "strat": bot.get("strategy") or "",
+            "watch": watch_str(bot),
+            "zone": zone_of[idx],
+            "perf": perf_by_idx[idx],
+            **placements[idx]})
+    city_json = json.dumps({"districts": city_districts, "bots": city_bots}
+                           ).replace("</", "<\\/")
 
+    # --- plain HTML directory (fallback) ---
     tiles = []
     for zid, label, sub, color in ZONES:
         n = len(zones[zid])
@@ -474,8 +955,8 @@ def main():
                 for i, b in sorted(members, key=lambda x: x[1]["name"]))
             panels.append(head + f'<div class="bots">{cards}</div></section>')
 
-    index = [{"i": idx, "name": b["name"], "zone": assign(b)[0],
-              "zoneLabel": zone_label[assign(b)[0]]}
+    index = [{"i": idx, "name": b["name"], "zone": zone_of[idx],
+              "zoneLabel": zone_label[zone_of[idx]]}
              for idx, b in enumerate(bots)]
     index_json = json.dumps(index).replace("</", "<\\/")
 
@@ -493,7 +974,6 @@ def main():
 <header>
 <h1>BOT CITY</h1>
 <div class="tagline">Cyber City Monitor · Every Bot Named · Every District On The Grid</div>
-<div class="skyline">{skyline}</div>
 <div class="stats">
 <span class="chip"><b>{total}</b> BOTS IN THE CITY</span>
 <span class="chip"><b>{names_under_watch}</b> NAMES UNDER WATCH</span>
@@ -515,6 +995,22 @@ the <span class="day"><b>DAY</b></span> book is fully liquid by the close, every
 </div>
 </header>
 <main>
+<section id="stage">
+<div id="cityhint">Drag to orbit · Scroll to zoom · Click a district or a building</div>
+<div id="cityfallback">3D CITY UNAVAILABLE · WEBGL OR THE THREE.JS CDN IS
+BLOCKED ON THIS DEVICE · THE FULL DIRECTORY BELOW LISTS EVERY ONE OF
+THE {total} BOTS BY NAME</div>
+<div id="tooltip"></div>
+<aside id="sidepanel">
+<button id="spclose" aria-label="Close panel">&times;</button>
+<div class="sp-head"><h2 id="sp-title">District</h2>
+<div class="sub" id="sp-sub"></div>
+<div class="meta" id="sp-meta"></div></div>
+<div id="botdetail"></div>
+<div id="botlist"></div>
+</aside>
+</section>
+<h2 class="dirhead">Full City Directory · Every Bot In Plain HTML</h2>
 <div class="grid">{''.join(tiles)}</div>
 {''.join(panels)}
 </main>
@@ -522,7 +1018,11 @@ the <span class="day"><b>DAY</b></span> book is fully liquid by the close, every
 separate environments: LONG book and DAY book never mix · paper city, ranked by production</footer>
 </div>
 <script type="application/json" id="bot-index">{index_json}</script>
+<script type="application/json" id="city-data">{city_json}</script>
+<script>setTimeout(function(){{if(!window.__cityReady){{var f=document.getElementById('cityfallback');if(f)f.style.display='flex';}}}},9000);</script>
 <script>{JS}</script>
+{IMPORTMAP}
+<script type="module">{THREE_JS}</script>
 </body>
 </html>
 """
