@@ -21,13 +21,19 @@ its record from the city's real stores, read at build time:
 Any missing store degrades to "no calls yet", never a build failure.
 
 Fullscreen + tracked P/L (Aaron, Sat Oct 31, 2026): the 3D stage is a
-100dvh hero with the header stats overlaid on the canvas and a
-Fullscreen API button; the header carries a CITY P/L strip (total net
-P/L, completed live trades, best and worst bot) computed from the same
-live standings, per bot P/L renders as a signed green/red figure on
-every card and panel row, and buildings of bots with completed trades
-are tinted green (net profit) or red (net loss) in the 3D scene.
-ARENA figures never enter the official strip.
+100dvh hero with a Fullscreen API button; the stats panel carries a
+CITY P/L strip (total net P/L, completed live trades, best and worst
+bot) computed from the same live standings, per bot P/L renders as a
+signed green/red figure on every card and panel row, and buildings of
+bots with completed trades are tinted green (net profit) or red (net
+loss) in the 3D scene. ARENA figures never enter the official strip.
+
+Slim chrome (Aaron, Sat Oct 31, 2026, "I can't see shit"): the default
+stage shows only a slim top bar (wordmark, condensed CITY P/L, SEARCH /
+STATS / FULLSCREEN buttons). SEARCH expands the bot search inline in
+the bar; STATS slides down a glass panel holding the old header
+content (chips, full CITY P/L strip, performance note, two book law),
+closed by default. The city stays clean and fully visible.
 
 Run: python3 docs/build_page.py
 """
@@ -380,10 +386,6 @@ h1{font-size:clamp(34px,6vw,58px);letter-spacing:.14em;font-weight:800;
   background:linear-gradient(90deg,rgba(129,140,248,.13),rgba(232,121,249,.10));padding:13px 18px;
   text-align:center;font-size:14px;letter-spacing:.03em}
 .law b{color:#e879f9}.law .day{color:#22d3ee}.law .long{color:#4ade80}
-.searchbar{max-width:640px;margin:22px auto 6px;position:relative;z-index:20}
-.searchbar input{width:100%;padding:13px 18px;border-radius:12px;border:1px solid var(--line);
-  background:#0a1122;color:var(--txt);font-size:16px;outline:none}
-.searchbar input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.18)}
 #results{display:none;margin-top:8px;background:var(--panel);border:1px solid var(--line);
   border-radius:12px;overflow:hidden;max-height:330px;overflow-y:auto;text-align:left}
 #results.open{display:block}
@@ -393,24 +395,49 @@ h1{font-size:clamp(34px,6vw,58px);letter-spacing:.14em;font-weight:800;
 #results button:hover{background:#101a33}
 #results .z{color:var(--dim);font-size:12px;letter-spacing:.05em}
 #results .none{padding:12px 16px;color:var(--dim);font-size:14px}
-/* --- 3D city stage: fullscreen hero, header overlaid on the canvas --- */
+/* --- 3D city stage: fullscreen hero, slim chrome over the canvas --- */
 #stage{position:relative;height:100vh;height:100dvh;min-height:440px;
   width:100vw;margin-left:calc(50% - 50vw);
   border-top:1px solid var(--line);border-bottom:1px solid var(--line);
   overflow:hidden;background:#04060d;
   box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 42px -12px rgba(34,211,238,.25)}
 #stage:fullscreen{width:100%;height:100%;margin:0;border:none}
-#stagehead{position:absolute;top:0;left:0;right:0;z-index:5;pointer-events:none;
-  text-align:center;padding:16px 14px 12px;
-  background:linear-gradient(180deg,rgba(3,5,12,.88) 55%,rgba(3,5,12,0))}
-#stagehead h1{font-size:clamp(28px,4.6vw,44px)}
-#stagehead .tagline{margin-top:2px}
-#stagehead .stats{margin:12px 0 4px}
-#stagehead .chip{background:rgba(11,17,34,.88)}
-#stagehead .perf-note{margin-top:8px;text-shadow:0 1px 4px #000}
-#stagehead .law{margin:10px auto 2px;padding:9px 14px;font-size:12.5px;
+/* slim top bar: the ONLY chrome over the city by default */
+#topbar{position:absolute;top:0;left:0;right:0;z-index:9;height:48px;
+  display:flex;align-items:center;gap:14px;padding:0 12px;
+  background:rgba(4,7,16,.72);backdrop-filter:blur(10px);
+  border-bottom:1px solid rgba(56,86,140,.45)}
+#topbar .wordmark{font-weight:800;letter-spacing:.22em;font-size:15px;white-space:nowrap;
+  background:linear-gradient(90deg,#22d3ee,#818cf8,#e879f9);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+#topbar .barpl{font-size:12.5px;letter-spacing:.06em;color:var(--dim);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#topbar .barpl .pnl{font-size:13px}
+#topbar .spacer{flex:1}
+.barbtn{background:rgba(7,12,26,.85);color:var(--cyan);border:1px solid #2b4470;
+  border-radius:9px;padding:7px 13px;font-size:11.5px;font-weight:700;
+  letter-spacing:.14em;cursor:pointer;white-space:nowrap;font:inherit}
+.barbtn:hover{border-color:var(--cyan);color:#eaf2ff}
+.barbtn.on{border-color:var(--cyan);background:rgba(34,211,238,.14);color:#eaf2ff}
+.barbtn.fs{border-color:var(--cyan);box-shadow:0 0 12px -5px var(--cyan)}
+#barsearch{display:none;flex:0 1 460px;position:relative}
+#barsearch.open{display:block}
+#barsearch input{width:100%;padding:8px 13px;border-radius:9px;border:1px solid var(--line);
+  background:#0a1122;color:var(--txt);font-size:14.5px;outline:none}
+#barsearch input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.18)}
+#barsearch #results{position:absolute;top:calc(100% + 8px);left:0;right:0;margin-top:0}
+/* slide-down stats panel: holds the old header, CLOSED by default */
+#statspanel{position:absolute;top:48px;left:0;right:0;z-index:8;display:none;
+  max-height:40%;overflow-y:auto;text-align:center;padding:14px 14px 16px;
+  background:rgba(4,7,16,.84);backdrop-filter:blur(12px);
+  border-bottom:1px solid rgba(56,86,140,.45)}
+#statspanel.open{display:block;animation:open .2s ease}
+#statspanel .tagline{margin-top:0}
+#statspanel .stats{margin:10px 0 4px}
+#statspanel .chip{background:rgba(11,17,34,.88)}
+#statspanel .perf-note{margin-top:8px}
+#statspanel .law{margin:10px auto 2px;padding:9px 14px;font-size:12.5px;
   background:rgba(10,13,30,.75)}
-#stagehead .searchbar{pointer-events:auto;margin:12px auto 4px}
 .plstrip{display:inline-block;margin-top:10px;background:rgba(7,12,26,.9);
   border:1px solid var(--line);border-radius:999px;padding:8px 18px;
   font-size:13px;letter-spacing:.08em}
@@ -419,17 +446,12 @@ h1{font-size:clamp(34px,6vw,58px);letter-spacing:.14em;font-weight:800;
 .pnl.pos{color:#4ade80}
 .pnl.neg{color:#f87171}
 .perf.haspl{border-color:#2b4470;color:#c6d6f5}
-#fsbtn{position:absolute;top:14px;right:14px;z-index:7;
-  background:rgba(7,12,26,.92);color:var(--cyan);border:1px solid var(--cyan);
-  border-radius:10px;padding:10px 16px;font-size:12.5px;font-weight:700;
-  letter-spacing:.16em;cursor:pointer;box-shadow:0 0 16px -4px var(--cyan)}
-#fsbtn:hover{background:rgba(34,211,238,.16);color:#eaf2ff}
 #legend{position:absolute;right:14px;bottom:12px;z-index:4;pointer-events:none;
-  background:rgba(6,10,24,.88);border:1px solid var(--line);border-radius:10px;
-  padding:8px 12px;font-size:11.5px;letter-spacing:.05em;color:var(--dim);
+  background:rgba(6,10,24,.55);border:1px solid rgba(56,86,140,.4);border-radius:8px;
+  padding:5px 9px;font-size:10px;letter-spacing:.05em;color:var(--dim);
   text-shadow:0 1px 4px #000}
-#legend .sw{display:inline-block;width:10px;height:10px;border-radius:3px;
-  margin:0 5px 0 10px;vertical-align:-1px}
+#legend .sw{display:inline-block;width:8px;height:8px;border-radius:2px;
+  margin:0 4px 0 8px;vertical-align:-1px}
 #legend .sw:first-child{margin-left:0}
 .sw-district{background:#3d5a80}.sw-pos{background:#2bff6a}.sw-neg{background:#ff3b30}
 #stage canvas{display:block}
@@ -512,10 +534,12 @@ footer{margin-top:44px;text-align:center;color:var(--dim);font-size:12px;letter-
   .grid{grid-template-columns:1fr}
   .bots{grid-template-columns:1fr}
   #stage{min-height:420px}
-  #stagehead{padding-top:10px}
-  #stagehead .tagline{display:none}
-  #fsbtn{top:10px;right:10px;padding:8px 12px;font-size:11.5px}
-  #legend{font-size:10.5px;right:10px;bottom:10px}
+  #topbar{gap:8px;padding:0 8px;height:46px}
+  #topbar .wordmark{font-size:12.5px;letter-spacing:.14em}
+  #topbar .barpl{font-size:11.5px}
+  .barbtn{padding:6px 9px;font-size:10.5px;letter-spacing:.1em}
+  #statspanel{top:46px;padding:10px 10px 12px}
+  #legend{font-size:9.5px;right:10px;bottom:10px}
   #sidepanel{width:100%;height:58%;top:auto;bottom:0;transform:translateY(106%);
     border-left:none;border-top:1px solid var(--line)}
   #sidepanel.open{transform:none}
@@ -537,6 +561,7 @@ function openZone(id,scroll){
 }
 document.querySelectorAll('.tile').forEach(t=>t.addEventListener('click',()=>{
   openZone(t.dataset.zone);
+  if(window.__closeStats)window.__closeStats();
   if(window.__selectDistrict)window.__selectDistrict(t.dataset.zone);
 }));
 const idx=JSON.parse(document.getElementById('bot-index').textContent);
@@ -552,6 +577,7 @@ input.addEventListener('input',()=>{
   box.querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>{
     const b=idx.find(x=>x.i===+btn.dataset.bot);if(!b)return;
     box.classList.remove('open');input.value='';
+    if(window.__closeStats)window.__closeStats();
     openZone(b.zone,false);
     const el=document.getElementById('bot-'+b.i);
     setTimeout(()=>{el.scrollIntoView({behavior:'smooth',block:'center'});
@@ -559,7 +585,7 @@ input.addEventListener('input',()=>{
     if(window.__flyToBot)window.__flyToBot(b.i);
   }));
 });
-document.addEventListener('click',e=>{if(!e.target.closest('.searchbar'))box.classList.remove('open');});
+document.addEventListener('click',e=>{if(!e.target.closest('#barsearch'))box.classList.remove('open');});
 openZone('civic',false);
 /* Fullscreen: the button toggles the Fullscreen API on the stage
    container, so the side panel, search and tooltip (all positioned
@@ -574,6 +600,31 @@ if(fsBtn&&stageEl){
   document.addEventListener('fullscreenchange',()=>{
     fsBtn.textContent=document.fullscreenElement?'EXIT FULLSCREEN':'FULLSCREEN';});
 }
+/* Slim top bar: SEARCH expands the input inline in the bar, STATS
+   slides the info panel (old header content) down under the bar.
+   The panel is closed by default; it closes on a second STATS click,
+   on Esc, and whenever a district is selected (the 3D module and the
+   directory handlers call window.__closeStats). */
+const statsPanel=document.getElementById('statspanel'),
+      statsBtn=document.getElementById('statsbtn'),
+      searchBtn=document.getElementById('searchbtn'),
+      barSearch=document.getElementById('barsearch');
+function closeStats(){
+  if(statsPanel)statsPanel.classList.remove('open');
+  if(statsBtn)statsBtn.classList.remove('on');
+}
+window.__closeStats=closeStats;
+if(statsBtn&&statsPanel)statsBtn.addEventListener('click',()=>{
+  statsBtn.classList.toggle('on',statsPanel.classList.toggle('open'));
+});
+if(searchBtn&&barSearch)searchBtn.addEventListener('click',()=>{
+  const open=barSearch.classList.toggle('open');
+  searchBtn.classList.toggle('on',open);
+  if(open)input.focus();else box.classList.remove('open');
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')closeStats();
+});
 """
 
 # The 3D city. Three.js and OrbitControls load from the jsDelivr CDN;
@@ -793,6 +844,7 @@ function flashBot(b){
 let selectedZone = null;
 function selectZone(zoneId, focusIdx){
   selectedZone = zoneId;
+  if (window.__closeStats) window.__closeStats();
   const d = ZONE[zoneId];
   document.getElementById('sp-title').textContent = d.label;
   const sub = document.getElementById('sp-sub');
@@ -977,9 +1029,12 @@ def main():
             f"{esc(best[0])} ${best[2]:+,.0f}</span> · WORST "
             f'<span class="pnl {worst_cls}">{esc(worst[0])} '
             f"${worst[2]:+,.0f}</span>")
+        barpl = (f'P/L <span class="pnl {tot_cls}">'
+                 f"${city_pnl:+,.0f}</span> · {live_completed} trades")
     else:
         plstrip = ('TOTAL NET <span class="pnl">$0</span> · NO COMPLETED '
                    "LIVE TRADES YET · DAY ONE IS MON NOV 2")
+        barpl = 'P/L <span class="pnl">$0</span> · 0 trades'
 
     zones = {zid: [] for zid in ZONE_IDS}          # zone -> [(idx, bot)]
     zone_of = {}
@@ -1081,8 +1136,19 @@ def main():
 <div class="wrap">
 <main>
 <section id="stage">
-<div id="stagehead">
-<h1>BOT CITY</h1>
+<div id="topbar">
+<span class="wordmark">BOT CITY</span>
+<span class="barpl">{barpl}</span>
+<span class="spacer"></span>
+<div id="barsearch">
+<input id="q" type="search" placeholder="Search any bot by name..." autocomplete="off">
+<div id="results"></div>
+</div>
+<button id="searchbtn" class="barbtn" type="button">SEARCH</button>
+<button id="statsbtn" class="barbtn" type="button">STATS</button>
+<button id="fsbtn" class="barbtn fs" type="button">FULLSCREEN</button>
+</div>
+<div id="statspanel">
 <div class="tagline">Cyber City Monitor · Every Bot Named · Every District On The Grid</div>
 <div class="stats">
 <span class="chip"><b>{total}</b> BOTS IN THE CITY</span>
@@ -1100,12 +1166,7 @@ trade · ARENA marks are backtest, never official</div>
 <span class="long"><b>LONG HOLD</b></span> and <span class="day"><b>DAY TRADING</b></span> ·
 the <span class="day"><b>DAY</b></span> book is fully liquid by the close, every day ·
 <span class="long"><b>LONG</b></span> decisions are Muse's calls</div>
-<div class="searchbar">
-<input id="q" type="search" placeholder="Search any bot by name across the whole city..." autocomplete="off">
-<div id="results"></div>
 </div>
-</div>
-<button id="fsbtn" type="button">FULLSCREEN</button>
 <div id="legend"><span class="sw sw-district"></span>district color · no completed trades yet<span class="sw sw-pos"></span>net profit<span class="sw sw-neg"></span>net loss</div>
 <div id="cityhint">Drag to orbit · Scroll to zoom · Click a district or a building</div>
 <div id="cityfallback">3D CITY UNAVAILABLE · WEBGL OR THE THREE.JS CDN IS
