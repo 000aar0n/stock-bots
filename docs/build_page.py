@@ -20,6 +20,15 @@ its record from the city's real stores, read at build time:
   - judge_scorecard.py output for JUDGE's own row.
 Any missing store degrades to "no calls yet", never a build failure.
 
+Fullscreen + tracked P/L (Aaron, Sat Oct 31, 2026): the 3D stage is a
+100dvh hero with the header stats overlaid on the canvas and a
+Fullscreen API button; the header carries a CITY P/L strip (total net
+P/L, completed live trades, best and worst bot) computed from the same
+live standings, per bot P/L renders as a signed green/red figure on
+every card and panel row, and buildings of bots with completed trades
+are tinted green (net profit) or red (net loss) in the 3D scene.
+ARENA figures never enter the official strip.
+
 Run: python3 docs/build_page.py
 """
 
@@ -165,6 +174,15 @@ def load_performance(bots):
     return live_st, arena_st, min_calls, min_sessions
 
 
+def live_record(live_st, name):
+    """(completed_live_calls, net_pnl) for a bot from THE BOARD live
+    standings, or None when it has no completed live trades."""
+    s = live_st.get(name)
+    if s and s.get("calls", 0) > 0:
+        return int(s["calls"]), float(s["pnl"])
+    return None
+
+
 def perf_html(bot, live_st, arena_st, min_calls, min_sessions,
               judge_stat):
     """One bot's performance lines, from the stores only. A bot with
@@ -185,9 +203,12 @@ def perf_html(bot, live_st, arena_st, min_calls, min_sessions,
                   and s.get("sessions", 0) >= min_sessions)
         status = "PROVEN" if proven else "UNPROVEN"
         cls = "proven" if proven else "unproven"
+        sgn = "pos" if pnl >= 0 else "neg"
         out.append(
-            f'<div class="perf {cls}">PERF · {calls} live calls · '
-            f"net ${pnl:+,.0f} · ${per:+,.0f}/call · {status}</div>")
+            f'<div class="perf {cls} haspl">PERF · {calls} live calls · '
+            f'net <span class="pnl {sgn}">${pnl:+,.0f}</span> · '
+            f'<span class="pnl {sgn}">${per:+,.0f}/call</span> · '
+            f"{status}</div>")
     else:
         extra = ""
         if s and s.get("alerts", 0) > 0:
@@ -339,7 +360,7 @@ CSS = """
   --txt:#dbe7ff; --dim:#8494b8; --cyan:#22d3ee; --pink:#f472b6;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
+html{scroll-behavior:smooth;overflow-x:hidden}
 body{background:radial-gradient(1200px 600px at 50% -10%,#12204a 0%,var(--bg) 55%) fixed,var(--bg);
   color:var(--txt);font-family:"Avenir Next","Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
   line-height:1.45;padding:0 16px 64px}
@@ -372,10 +393,45 @@ h1{font-size:clamp(34px,6vw,58px);letter-spacing:.14em;font-weight:800;
 #results button:hover{background:#101a33}
 #results .z{color:var(--dim);font-size:12px;letter-spacing:.05em}
 #results .none{padding:12px 16px;color:var(--dim);font-size:14px}
-/* --- 3D city stage --- */
-#stage{position:relative;height:min(76vh,740px);min-height:460px;margin-top:24px;
-  border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#04060d;
+/* --- 3D city stage: fullscreen hero, header overlaid on the canvas --- */
+#stage{position:relative;height:100vh;height:100dvh;min-height:440px;
+  width:100vw;margin-left:calc(50% - 50vw);
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  overflow:hidden;background:#04060d;
   box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 42px -12px rgba(34,211,238,.25)}
+#stage:fullscreen{width:100%;height:100%;margin:0;border:none}
+#stagehead{position:absolute;top:0;left:0;right:0;z-index:5;pointer-events:none;
+  text-align:center;padding:16px 14px 12px;
+  background:linear-gradient(180deg,rgba(3,5,12,.88) 55%,rgba(3,5,12,0))}
+#stagehead h1{font-size:clamp(28px,4.6vw,44px)}
+#stagehead .tagline{margin-top:2px}
+#stagehead .stats{margin:12px 0 4px}
+#stagehead .chip{background:rgba(11,17,34,.88)}
+#stagehead .perf-note{margin-top:8px;text-shadow:0 1px 4px #000}
+#stagehead .law{margin:10px auto 2px;padding:9px 14px;font-size:12.5px;
+  background:rgba(10,13,30,.75)}
+#stagehead .searchbar{pointer-events:auto;margin:12px auto 4px}
+.plstrip{display:inline-block;margin-top:10px;background:rgba(7,12,26,.9);
+  border:1px solid var(--line);border-radius:999px;padding:8px 18px;
+  font-size:13px;letter-spacing:.08em}
+.plstrip .pnl{font-size:14px}
+.pnl{font-weight:800;color:var(--txt)}
+.pnl.pos{color:#4ade80}
+.pnl.neg{color:#f87171}
+.perf.haspl{border-color:#2b4470;color:#c6d6f5}
+#fsbtn{position:absolute;top:14px;right:14px;z-index:7;
+  background:rgba(7,12,26,.92);color:var(--cyan);border:1px solid var(--cyan);
+  border-radius:10px;padding:10px 16px;font-size:12.5px;font-weight:700;
+  letter-spacing:.16em;cursor:pointer;box-shadow:0 0 16px -4px var(--cyan)}
+#fsbtn:hover{background:rgba(34,211,238,.16);color:#eaf2ff}
+#legend{position:absolute;right:14px;bottom:12px;z-index:4;pointer-events:none;
+  background:rgba(6,10,24,.88);border:1px solid var(--line);border-radius:10px;
+  padding:8px 12px;font-size:11.5px;letter-spacing:.05em;color:var(--dim);
+  text-shadow:0 1px 4px #000}
+#legend .sw{display:inline-block;width:10px;height:10px;border-radius:3px;
+  margin:0 5px 0 10px;vertical-align:-1px}
+#legend .sw:first-child{margin-left:0}
+.sw-district{background:#3d5a80}.sw-pos{background:#2bff6a}.sw-neg{background:#ff3b30}
 #stage canvas{display:block}
 #cityhint{position:absolute;left:14px;bottom:12px;z-index:4;color:#a9bcdf;font-size:12px;
   letter-spacing:.1em;text-transform:uppercase;text-shadow:0 1px 6px #000;pointer-events:none}
@@ -455,8 +511,11 @@ footer{margin-top:44px;text-align:center;color:var(--dim);font-size:12px;letter-
 @media (max-width:640px){
   .grid{grid-template-columns:1fr}
   .bots{grid-template-columns:1fr}
-  header{padding-top:26px}
-  #stage{height:62vh;min-height:400px}
+  #stage{min-height:420px}
+  #stagehead{padding-top:10px}
+  #stagehead .tagline{display:none}
+  #fsbtn{top:10px;right:10px;padding:8px 12px;font-size:11.5px}
+  #legend{font-size:10.5px;right:10px;bottom:10px}
   #sidepanel{width:100%;height:58%;top:auto;bottom:0;transform:translateY(106%);
     border-left:none;border-top:1px solid var(--line)}
   #sidepanel.open{transform:none}
@@ -502,6 +561,19 @@ input.addEventListener('input',()=>{
 });
 document.addEventListener('click',e=>{if(!e.target.closest('.searchbar'))box.classList.remove('open');});
 openZone('civic',false);
+/* Fullscreen: the button toggles the Fullscreen API on the stage
+   container, so the side panel, search and tooltip (all positioned
+   inside the stage) keep working while fullscreen. Esc exits via the
+   browser default. */
+const fsBtn=document.getElementById('fsbtn'),stageEl=document.getElementById('stage');
+if(fsBtn&&stageEl){
+  fsBtn.addEventListener('click',()=>{
+    if(document.fullscreenElement){document.exitFullscreen();}
+    else if(stageEl.requestFullscreen){stageEl.requestFullscreen();}
+  });
+  document.addEventListener('fullscreenchange',()=>{
+    fsBtn.textContent=document.fullscreenElement?'EXIT FULLSCREEN':'FULLSCREEN';});
+}
 """
 
 # The 3D city. Three.js and OrbitControls load from the jsDelivr CDN;
@@ -682,6 +754,12 @@ DATA.districts.forEach(d => {
     m4.compose(pv, q, sc);
     im.setMatrixAt(j, m4);
     b._base = base.clone().multiplyScalar(b.s);
+    /* P/L tint: a bot with completed live trades shifts its building
+       toward green (net profit) or red (net loss); no trades yet
+       keeps the neutral district color. */
+    if (b.pnl != null && b.calls > 0) {
+      b._base.lerp(new THREE.Color(b.pnl >= 0 ? 0x2bff6a : 0xff3b30), 0.62);
+    }
     im.setColorAt(j, b._base);
     b._mesh = im; b._inst = j;
   });
@@ -790,12 +868,15 @@ renderer.domElement.addEventListener('pointermove', e => {
 });
 renderer.domElement.addEventListener('pointerleave', () => { hoverEvt = null; tooltip.style.display = 'none'; });
 
-window.addEventListener('resize', () => {
+function fitRenderer(){
   const w = stage.clientWidth, hgt = stage.clientHeight;
+  if (!w || !hgt) return;
   camera.aspect = w / hgt;
   camera.updateProjectionMatrix();
   renderer.setSize(w, hgt);
-});
+}
+window.addEventListener('resize', fitRenderer);
+document.addEventListener('fullscreenchange', () => setTimeout(fitRenderer, 60));
 
 /* --- main loop --- */
 function animate(){
@@ -876,6 +957,30 @@ def main():
     bots_with_calls = sum(1 for s in live_st.values()
                           if s.get("calls", 0) > 0)
 
+    # --- CITY P/L strip: live standings only, ARENA never counted ---
+    traded = []
+    for b in bots:
+        rec = live_record(live_st, b["name"])
+        if rec is not None:
+            traded.append((b["name"], rec[0], rec[1]))
+    city_pnl = sum(t[2] for t in traded)
+    if traded:
+        best = max(traded, key=lambda t: t[2])
+        worst = min(traded, key=lambda t: t[2])
+        tot_cls = "pos" if city_pnl >= 0 else "neg"
+        best_cls = "pos" if best[2] >= 0 else "neg"
+        worst_cls = "pos" if worst[2] >= 0 else "neg"
+        plstrip = (
+            f'TOTAL NET <span class="pnl {tot_cls}">'
+            f"${city_pnl:+,.0f}</span> · {live_completed} COMPLETED "
+            f'LIVE TRADES · BEST <span class="pnl {best_cls}">'
+            f"{esc(best[0])} ${best[2]:+,.0f}</span> · WORST "
+            f'<span class="pnl {worst_cls}">{esc(worst[0])} '
+            f"${worst[2]:+,.0f}</span>")
+    else:
+        plstrip = ('TOTAL NET <span class="pnl">$0</span> · NO COMPLETED '
+                   "LIVE TRADES YET · DAY ONE IS MON NOV 2")
+
     zones = {zid: [] for zid in ZONE_IDS}          # zone -> [(idx, bot)]
     zone_of = {}
     artisan_subs = {}                                # sub zone id or None -> [...]
@@ -900,6 +1005,7 @@ def main():
             "count": d["count"]})
     city_bots = []
     for idx, bot in enumerate(bots):
+        rec = live_record(live_st, bot["name"])
         city_bots.append({
             "i": idx, "name": bot["name"], "kind": bot["kind"],
             "hold": bot.get("hold_style") or "none",
@@ -908,6 +1014,8 @@ def main():
             "watch": watch_str(bot),
             "zone": zone_of[idx],
             "perf": perf_by_idx[idx],
+            "calls": rec[0] if rec else 0,
+            "pnl": rec[1] if rec else None,
             **placements[idx]})
     city_json = json.dumps({"districts": city_districts, "bots": city_bots}
                            ).replace("</", "<\\/")
@@ -971,7 +1079,9 @@ def main():
 </head>
 <body>
 <div class="wrap">
-<header>
+<main>
+<section id="stage">
+<div id="stagehead">
 <h1>BOT CITY</h1>
 <div class="tagline">Cyber City Monitor · Every Bot Named · Every District On The Grid</div>
 <div class="stats">
@@ -981,6 +1091,7 @@ def main():
 <span class="chip"><b>{live_completed}</b> LIVE TRADES COMPLETED CITYWIDE</span>
 <span class="chip live"><b>MON NOV 2</b> LIVE TEST DAY</span>
 </div>
+<div><span class="plstrip">CITY P/L · {plstrip}</span></div>
 <div class="perf-note">PERFORMANCE · official standings come only from
 <b>live calls</b> · Monday Nov 2 is day one, so most rows honestly read
 zero today · {bots_with_calls} of {total} bots have a completed live
@@ -993,9 +1104,9 @@ the <span class="day"><b>DAY</b></span> book is fully liquid by the close, every
 <input id="q" type="search" placeholder="Search any bot by name across the whole city..." autocomplete="off">
 <div id="results"></div>
 </div>
-</header>
-<main>
-<section id="stage">
+</div>
+<button id="fsbtn" type="button">FULLSCREEN</button>
+<div id="legend"><span class="sw sw-district"></span>district color · no completed trades yet<span class="sw sw-pos"></span>net profit<span class="sw sw-neg"></span>net loss</div>
 <div id="cityhint">Drag to orbit · Scroll to zoom · Click a district or a building</div>
 <div id="cityfallback">3D CITY UNAVAILABLE · WEBGL OR THE THREE.JS CDN IS
 BLOCKED ON THIS DEVICE · THE FULL DIRECTORY BELOW LISTS EVERY ONE OF
@@ -1033,6 +1144,8 @@ separate environments: LONG book and DAY book never mix · paper city, ranked by
     print(f"performance: {live_completed} completed live trades across "
           f"{bots_with_calls} bots · arena bots with activity: "
           f"{len(arena_st)} · JUDGE {judge_stat}")
+    print(f"city P/L strip: total net ${city_pnl:+,.2f} · "
+          f"{len(traded)} bots with completed live trades")
     print(f"total bots: {total} · names under watch: {names_under_watch}")
     for zid, label, _, _ in ZONES:
         print(f"  {label:<28} {len(zones[zid]):>4}")
