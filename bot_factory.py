@@ -260,8 +260,8 @@ def build_registry():
     registry = {"generated_at": datetime.now().isoformat(timespec="seconds"),
                 "count": len(bots), "counts_by_kind": counts, "bots": bots}
     os.makedirs(os.path.dirname(REGISTRY_PATH), exist_ok=True)
-    with open(REGISTRY_PATH, "w") as f:
-        json.dump(registry, f, indent=1)
+    from storage import atomic_json
+    atomic_json(REGISTRY_PATH, registry)
     return registry
 
 

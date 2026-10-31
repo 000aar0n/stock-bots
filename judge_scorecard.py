@@ -241,10 +241,9 @@ def delete_judge():
     snapshot = {"deleted_at": datetime.now().isoformat(timespec="seconds"),
                 "verdict_why": why, "scorecard": sc,
                 "succession_principle": SUCCESSION_PRINCIPLE}
-    with open(SUMMARY_PATH, "w") as f:
-        json.dump(snapshot, f, indent=1)
-    with open(TOMBSTONE_PATH, "w") as f:
-        json.dump(snapshot, f, indent=1)
+    from storage import atomic_json
+    atomic_json(SUMMARY_PATH, snapshot)
+    atomic_json(TOMBSTONE_PATH, snapshot)
     removed = 0
     if os.path.exists(REGISTRY_PATH):
         with open(REGISTRY_PATH) as f:
@@ -257,8 +256,7 @@ def delete_judge():
         for b in reg["bots"]:
             counts[b["kind"]] = counts.get(b["kind"], 0) + 1
         reg["counts_by_kind"] = counts
-        with open(REGISTRY_PATH, "w") as f:
-            json.dump(reg, f, indent=1)
+        atomic_json(REGISTRY_PATH, reg)
     return (f"JUDGE DELETED ({why}). Removed {removed} registry "
             "record(s); tombstone written so the factory never "
             "re-mints it. Scorecard preserved in "
