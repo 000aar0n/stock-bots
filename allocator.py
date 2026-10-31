@@ -9,9 +9,23 @@ inside their earnings window (SIREN's calendar).
 
 LEDGER then verifies the sheet against the raw snapshot numbers
 with its own arithmetic. If they agree, one BUDGET SHEET prints. If
-they disagree, both numbers print and the sheet uses the SMALLER
-deployable figure, flagged DISAGREEMENT. Dual sign off or the
-smaller number wins, no exceptions.
+they disagree, both numbers print, the sheet is flagged
+DISAGREEMENT, and it fails closed: deployable is zeroed, no
+exceptions.
+
+TWO BOOK BUDGET (Aaron, Sat Oct 31, 2026): the deployable figure is
+split 50/50 into two envelopes. The LONG HOLD envelope funds swing
+positions (hold_style "swing"; stat arb pairs live here, they are
+exempt from the same day flat rule). The DAY TRADING envelope funds
+intraday positions (hold_style "intraday", the city default).
+Neither envelope may exceed 50 percent of deployable, unspent
+envelope money stays in reserve and does NOT spill into the other
+envelope, and every budgeted line is labeled with its book (LONG or
+DAY). The DAY TRADING book is fully liquid by end of day, every
+day; flattening it is the close session's job, and the sheet prints
+that standing rule on every run. TREASURER proposes the split and
+LEDGER verifies it independently, inside the same fail closed
+agreement as the totals.
 
 JUDGE consumes this sheet format via output/budget.json
 (fields: reserve, deployable, per_name, caps).
@@ -52,6 +66,33 @@ EARNINGS_CAP = 15_000.0
 EARNINGS_WINDOW_SESSIONS = 2
 
 
+def book_for(kind, hold_style):
+    """Which book a candidate belongs to. Pairs are swing by city
+    convention (stat arb is exempt from the same day flat rule), and
+    any candidate carrying hold_style "swing" is a long hold.
+    Everything else is intraday by default, the city default."""
+    if kind == "pair" or hold_style == "swing":
+        return "LONG"
+    return "DAY"
+
+
+def envelope_caps(deployable):
+    """The 50/50 split of deployable into the two book envelopes.
+    The two caps always sum to exactly deployable."""
+    long_cap = round(deployable / 2.0, 2)
+    return {"LONG": long_cap, "DAY": round(deployable - long_cap, 2)}
+
+
+def envelope_totals(per_name, caps):
+    allocated = {"LONG": 0.0, "DAY": 0.0}
+    for p in per_name.values():
+        allocated[p["book"]] += p["budget"]
+    return {"LONG": {"hold_style": "swing", "cap": caps["LONG"],
+                     "allocated": round(allocated["LONG"], 2)},
+            "DAY": {"hold_style": "intraday", "cap": caps["DAY"],
+                    "allocated": round(allocated["DAY"], 2)}}
+
+
 # ---------------------------------------------------------------- TREASURER
 
 def treasurer_propose(snapshot, decisions, earnings_rows, buy_mode,
@@ -63,6 +104,7 @@ def treasurer_propose(snapshot, decisions, earnings_rows, buy_mode,
     existing = {r["symbol"]: abs(r.get("market_value") or 0) for r in decisions.get("positions", [])}
     earn = {r["ticker"]: r for r in earnings_rows}
     ev_map = {r["ticker"]: r["ev_score"] for r in (odds_rows or [])}
+    caps = envelope_caps(deployable)
 
     singles = []
     raw_cands = [c for c in decisions.get("buy_candidates", [])
@@ -74,39 +116,51 @@ def treasurer_propose(snapshot, decisions, earnings_rows, buy_mode,
         e = earn.get(c["symbol"])
         if e and e["sessions_until"] <= EARNINGS_WINDOW_SESSIONS:
             cap = min(cap, EARNINGS_CAP)
+        hold = c.get("hold_style", "intraday")
         singles.append({"name": c["symbol"], "kind": "momentum",
+                        "hold_style": hold,
+                        "book": book_for("momentum", hold),
                         "cap": max(0.0, cap-existing.get(c["symbol"],0)), "ev": ev_map.get(c["symbol"])})
     pairs = []
     for a in decisions.get("arb_candidates", []):
         if a["blocked"] or not a.get("verified_eligibility", False):
             continue
         pairs.append({"name": a["pair"], "kind": "pair",
+                      "hold_style": "swing", "book": "LONG",
                       "strength": abs(a["gap_points"]),
                       "cap": SINGLE_NAME_CAP * value})
 
     per_name = {}
     skipped = []
-    remaining = deployable
-    # Singles first, top down by EV. Negative EV is skipped outright.
+    remaining = dict(caps)
+    # Singles first, top down by EV, each funded only from its own
+    # book's envelope. Negative EV is skipped outright. An envelope
+    # that runs dry does not borrow from the other book.
     for c in sorted(singles, key=lambda x: -(x["ev"] or 0.0)):
         if c["ev"] is None or c["ev"] <= 0:
             skipped.append(f"{c['name']}: negative EV score "
                            f"{c['ev']} (uncalibrated ODDS score), skipped")
             continue
-        budget = min(c["cap"], remaining)
+        budget = min(c["cap"], remaining[c["book"]])
         per_name[c["name"]] = {"budget": round(budget, 2),
                                "cap": round(c["cap"], 2),
-                               "kind": c["kind"], "ev": c["ev"]}
-        remaining -= budget
-    # Pairs split what is left, weighted by gap strength.
+                               "kind": c["kind"], "ev": c["ev"],
+                               "book": c["book"],
+                               "hold_style": c["hold_style"]}
+        remaining[c["book"]] -= budget
+    # Pairs split what is left of the LONG envelope, weighted by
+    # gap strength.
     total_strength = sum(c["strength"] for c in pairs)
     for c in pairs:
-        raw = (remaining * c["strength"] / total_strength
+        raw = (remaining["LONG"] * c["strength"] / total_strength
                if total_strength > 0 else 0.0)
         per_name[c["name"]] = {"budget": round(min(raw, c["cap"]), 2),
-                               "cap": round(c["cap"], 2), "kind": c["kind"]}
+                               "cap": round(c["cap"], 2), "kind": c["kind"],
+                               "book": c["book"],
+                               "hold_style": c["hold_style"]}
     return {"reserve": reserve, "deployable": round(deployable, 2),
-            "per_name": per_name, "buy_mode": buy_mode, "skipped": skipped}
+            "per_name": per_name, "buy_mode": buy_mode, "skipped": skipped,
+            "envelopes": envelope_totals(per_name, caps)}
 
 
 # ---------------------------------------------------------------- LEDGER
@@ -147,6 +201,38 @@ def ledger_verify(snapshot, sheet, earnings_rows):
     if total > min(deployable, sheet["deployable"]) + 0.01:
         problems.append(f"per name budgets sum ${total:,.2f} over the "
                         "deployable figure")
+    # Two book split, recomputed independently: envelope caps are
+    # 50/50 of deployable, every line carries the book its kind and
+    # hold_style demand, and no book's budgets exceed its envelope.
+    caps = envelope_caps(min(deployable, sheet["deployable"]))
+    env = sheet.get("envelopes")
+    if env is None:
+        problems.append("envelopes: TREASURER sheet has no two book split")
+    else:
+        for book in ("LONG", "DAY"):
+            if abs(env[book]["cap"] - caps[book]) > 0.01:
+                problems.append(
+                    f"{book} envelope cap: TREASURER "
+                    f"${env[book]['cap']:,.2f} vs LEDGER ${caps[book]:,.2f} "
+                    "(50/50 of deployable)")
+    book_totals = {"LONG": 0.0, "DAY": 0.0}
+    for name, p in sheet["per_name"].items():
+        expected = book_for(p["kind"], p.get("hold_style"))
+        if p.get("book") != expected:
+            problems.append(f"{name}: labeled book {p.get('book')} but "
+                            f"kind {p['kind']} with hold_style "
+                            f"{p.get('hold_style')} belongs to {expected}")
+        book_totals[expected] += p["budget"]
+    for book in ("LONG", "DAY"):
+        if book_totals[book] > caps[book] + 0.01:
+            problems.append(f"{book} book budgets sum "
+                            f"${book_totals[book]:,.2f} over its 50% "
+                            f"envelope ${caps[book]:,.2f}")
+        if env is not None and \
+                abs(env[book]["allocated"] - round(book_totals[book], 2)) > 0.01:
+            problems.append(f"{book} envelope allocated: TREASURER "
+                            f"${env[book]['allocated']:,.2f} vs LEDGER "
+                            f"${book_totals[book]:,.2f}")
     return (not problems), round(deployable, 2), problems
 
 
@@ -164,12 +250,14 @@ def build_sheet(snapshot, decisions, earnings_rows, buy_mode,
         scale = final_deployable / total
         for p in per_name.values():
             p["budget"] = round(p["budget"] * scale, 2)
+    caps = envelope_caps(final_deployable)
     return {"reserve": sheet["reserve"], "deployable": final_deployable,
             "treasurer_deployable": sheet["deployable"],
             "ledger_deployable": ledger_deployable,
             "per_name": per_name, "agreement": agree,
             "problems": problems, "buy_mode": buy_mode,
             "skipped": sheet.get("skipped", []),
+            "envelopes": envelope_totals(per_name, caps),
             "caps": {"single_name_cap_pct": SINGLE_NAME_CAP * 100,
                      "earnings_cap": EARNINGS_CAP}}
 
@@ -190,16 +278,31 @@ def print_sheet(sheet, snapshot):
         lines.append(f"  LEDGER deployable ${sheet['ledger_deployable']:,.2f}")
         for p in sheet["problems"]:
             lines.append(f"  {p}")
-        lines.append(f"  Sheet uses the SMALLER figure: "
+        lines.append("  Sheet fails closed on disagreement: deployable "
                      f"${sheet['deployable']:,.2f}")
+    env = sheet["envelopes"]
+    lines.append("Two book budget, 50/50 of deployable (unspent "
+                 "envelope money stays in reserve, no spill between "
+                 "books):")
+    lines.append(f"  LONG HOLD envelope (swing): cap "
+                 f"${env['LONG']['cap']:,.2f}, budgeted "
+                 f"${env['LONG']['allocated']:,.2f}")
+    lines.append(f"  DAY TRADING envelope (intraday): cap "
+                 f"${env['DAY']['cap']:,.2f}, budgeted "
+                 f"${env['DAY']['allocated']:,.2f}")
+    lines.append("  DAY book rule: the DAY TRADING book is fully "
+                 "liquid by end of day, every day. The close session "
+                 "flattens it. LONG HOLD positions may ride.")
     if sheet["per_name"]:
         lines.append("Per name budgets (singles funded top down by ODDS "
-                     "EV, pairs split the rest by gap strength, all "
-                     "capped):")
+                     "EV inside their own book's envelope, pairs split "
+                     "what is left of the LONG envelope by gap strength, "
+                     "all capped):")
         for name, p in sorted(sheet["per_name"].items(),
                               key=lambda kv: -kv[1]["budget"]):
             ev = f", EV {p['ev']:+.2f}" if p.get("ev") is not None else ""
-            lines.append(f"  {name:<10} ${p['budget']:>10,.2f}  "
+            lines.append(f"  [{p['book']:<4}] {name:<10} "
+                         f"${p['budget']:>10,.2f}  "
                          f"(cap ${p['cap']:,.2f}, {p['kind']}{ev})")
         spent = sum(p["budget"] for p in sheet["per_name"].values())
         lines.append(f"  Unallocated (stays in reserve): "
@@ -258,6 +361,9 @@ def main(argv=None):
                    "deployable": sheet["deployable"],
                    "per_name": {k: v["budget"]
                                 for k, v in sheet["per_name"].items()},
+                   "books": {k: v["book"]
+                             for k, v in sheet["per_name"].items()},
+                   "envelopes": sheet["envelopes"],
                    "caps": sheet["caps"], "agreement": sheet["agreement"],
                    "buy_mode": sheet["buy_mode"]}, f, indent=1)
     return 0

@@ -217,7 +217,7 @@ def test_whole_roster_runs_with_shared_synthetic_data(tmp_path,monkeypatch):
     monkeypatch.setattr(scanner,'fetch_daily',lambda _:copy.deepcopy(daily))
     monkeypatch.setattr(scanner,'fetch_intraday_candles',lambda _:copy.deepcopy(intra))
     registry=bot_factory.build_registry()
-    assert registry['count']==802
+    assert registry['count']==810
     with board.paper_context(path=str(tmp_path/'calls.jsonl'),output_dir=str(tmp_path)):
         digest=bot_factory.run_digest(registry,log_calls=False)
     failures=[line for line in digest.splitlines() if 'STOOD DOWN' in line]
