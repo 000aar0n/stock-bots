@@ -42,7 +42,13 @@ def main(argv=None):
     done = my_exits()
     print("SENTRY - exit watch over the held book (never opens)")
     alerts = 0
-    for sym, shares in rules.POSITIONS.items():
+    from leaderboard import PAPER_CONTEXT
+    snapshot = PAPER_CONTEXT.get().get("account_snapshot")
+    if not snapshot or snapshot.get("verified") is not True:
+        print("  verified current account snapshot unavailable; no fixture fallback")
+        return 0
+    for sym, position in snapshot["positions"].items():
+        shares = position["qty"]
         try:
             candles = scanner.fetch_daily(sym)
         except Exception:  # noqa: BLE001
@@ -51,7 +57,7 @@ def main(argv=None):
         closes = [c["close"] for c in candles]
         last = closes[-1]
         two_red = closes[-1] < closes[-2] < closes[-3]
-        entry = KNOWN_ENTRIES.get(sym)
+        entry = position.get("entry")
         drop = scanner.pct(last, entry) if entry else None
         tripped = two_red or (drop is not None and drop <= -8.0)
         state = (f"two red closes" if two_red else

@@ -12,10 +12,8 @@ stated reason serves as its cause and log_call copies it over.
 (arena calls, see arena.py). THE BOARD's official standings use
 LIVE calls only; arena standings print separately, labeled. For an "exit" call, entry_price is the
 price at the moment the exit was logged: it closes that bot's open
-call on the ticker, or, if the bot has no open call there, the exit
-is scored on its own as a defensive call (the move avoided versus
-still holding, which counts negative if the name rises afterwards -
-kept honest on purpose).
+call on the ticker, or, if the bot has no open call there, the alert earns no trading P&L.
+Repeated observations never count as completed trades.
 
 THE BOARD marks open calls to the latest live close from the data
 layer and prints the ranked table. It never places orders; it is a
@@ -30,7 +28,12 @@ from __future__ import annotations
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
+from contextvars import ContextVar
+from contextlib import contextmanager
+import math
+import uuid
+from storage import locked
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CALLS_PATH = os.path.join(HERE, "output", "calls.jsonl")
@@ -43,34 +46,74 @@ RANKED_KINDS_NOTE = "ranked: traders, specialists, snipers, strategists, pairs"
 
 # ---------------------------------------------------------------- logging
 
+PAPER_CONTEXT = ContextVar("paper_context", default={})
+COMMISSION = 10.0
+SLIPPAGE_BPS = 5.0  # explicit simulation assumption, not a measured fill cost
+
+
+@contextmanager
+def paper_context(**values):
+    token = PAPER_CONTEXT.set({**PAPER_CONTEXT.get(), **values})
+    try:
+        yield
+    finally:
+        PAPER_CONTEXT.reset(token)
+
+
 def log_call(bot, ticker, side, entry_price, reason, cause="",
-             source="live", path=CALLS_PATH):
-    """Append one paper call to calls.jsonl. Every call carries its
-    cause (the signal and readings that fired) and its source:
-    "live" for session calls, "backtest" for arena calls."""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    rec = {"bot": bot, "ts": datetime.now().isoformat(timespec="seconds"),
-           "ticker": ticker, "side": side, "qty_ref": REF_SIZE,
-           "entry_price": round(float(entry_price), 2), "reason": reason,
-           "cause": cause or reason, "source": source}
-    with open(path, "a") as f:
-        f.write(json.dumps(rec) + "\n")
+             source=None, path=None, ts=None, bar_id=None):
+    """Append a paper transition once. Never creates an HTMW execution.
+
+    Duplicate entries while open and exits while flat are no-ops.
+    A supplied bar_id also prevents close/reopen churn on one signal bar.
+    """
+    context = PAPER_CONTEXT.get()
+    source = source or context.get("source", "live")
+    path = path or context.get("path", CALLS_PATH)
+    ts = ts or context.get("ts") or datetime.now(timezone.utc).isoformat()
+    bar_id = bar_id or context.get("bar_id")
+    price = float(entry_price)
+    if source not in ("live", "backtest") or side not in ("buy", "short", "exit"):
+        raise ValueError("invalid paper source or side")
+    if not math.isfinite(price) or price <= 0:
+        raise ValueError("paper price must be finite and positive")
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with locked(path):
+        calls = load_calls(path=path, source=source)
+        own = [c for c in calls if c["bot"] == bot and c["ticker"] == ticker]
+        key = (bot, ticker)
+        if (side in ("buy", "short")) == (key in open_positions(own)):
+            return None
+        if bar_id and any(c.get("bar_id") == bar_id and c["side"] == side for c in own):
+            return None
+        rec = {"id": str(uuid.uuid4()), "bot": bot, "ts": ts,
+               "ticker": ticker, "side": side, "qty_ref": REF_SIZE,
+               "entry_price": price, "reason": reason, "cause": cause or reason,
+               "source": source, "bar_id": bar_id}
+        with open(path, "a") as handle:
+            handle.write(json.dumps(rec, allow_nan=False) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
     return rec
 
 
-def load_calls(path=CALLS_PATH):
+def load_calls(path=None, source="context"):
+    """Default reads are source-isolated; source=None explicitly reads all."""
+    context = PAPER_CONTEXT.get()
+    path = path or context.get("path", CALLS_PATH)
+    if source == "context":
+        source = context.get("source", "live")
     calls = []
     if not os.path.exists(path):
         return calls
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
+    with open(path) as handle:
+        for line in handle:
+            if not line.strip() or line.lstrip().startswith("#"):
                 continue
-            try:
-                calls.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
+            # Fail visibly on corruption, rather than silently erasing evidence.
+            row = json.loads(line)
+            if source is None or row.get("source", "live") == source:
+                calls.append(row)
     calls.sort(key=lambda c: c.get("ts", ""))
     return calls
 
@@ -89,75 +132,71 @@ def open_positions(calls):
 
 # ---------------------------------------------------------------- scoring
 
-def _ref_pnl(open_call, exit_price):
+def _ref_pnl(open_call, exit_price, closed=True):
     entry = open_call["entry_price"]
-    if not entry:
+    if not entry or not math.isfinite(entry) or entry <= 0:
         return None
     shares = REF_SIZE / entry
-    if open_call["side"] == "short":
-        return shares * (entry - exit_price)
-    return shares * (exit_price - entry)
+    gross = shares * (entry - exit_price if open_call["side"] == "short"
+                      else exit_price - entry)
+    # Both sides incur modeled spread/slippage; open marks charge entry only.
+    costs = COMMISSION + REF_SIZE * SLIPPAGE_BPS / 10_000
+    if closed:
+        costs += COMMISSION + shares * exit_price * SLIPPAGE_BPS / 10_000
+    return gross - costs
 
 
 def compute_standings(calls, price_fn=None):
-    """Score all calls. price_fn(ticker) -> latest close or None.
-    Returns {bot: {calls, scored: [{ticker, pnl, kind}], pnl}}."""
-    if price_fn is None:
-        import scanner  # lazy: data layer
-        cache = {}
+    """Rank completed round trips, keeping unrealized marks separate.
 
+    `calls` retains its API name but counts completed trades, not alerts.
+    Orphan exits and repeated entries carry no profit or eligibility credit.
+    """
+    if price_fn is None:
+        import scanner
+        cache = {}
         def price_fn(ticker):
             if ticker not in cache:
                 try:
                     cache[ticker] = scanner.fetch_daily(ticker)[-1]["close"]
-                except Exception:  # noqa: BLE001
+                except Exception:
                     cache[ticker] = None
             return cache[ticker]
-
-    opens = {}
-    defensive = []
-    scored = {}
-    made = {}
+    opens, out, seen = {}, {}, set()
     for c in calls:
         bot = c["bot"]
-        made[bot] = made.get(bot, 0) + 1
-        scored.setdefault(bot, [])
-        key = (bot, c["ticker"])
+        s = out.setdefault(bot, {"calls": 0, "alerts": 0, "scored": [],
+                                "pnl": 0.0, "open_pnl": 0.0, "wins": 0,
+                                "sessions": 0})
+        identity = c.get("id") or (bot, c["ticker"], c["side"],
+                                    c.get("ts"), c["entry_price"], c.get("source", "live"))
+        if identity in seen:
+            continue
+        seen.add(identity)
+        s["alerts"] += 1
+        key = (bot, c["ticker"], c.get("source", "live"))
         if c["side"] in ("buy", "short"):
-            if key not in opens:
-                opens[key] = c
+            opens.setdefault(key, c)
         elif c["side"] == "exit":
             op = opens.pop(key, None)
-            if op is not None:
-                pnl = _ref_pnl(op, c["entry_price"])
-                if pnl is not None:
-                    scored[bot].append({"ticker": c["ticker"], "pnl": pnl,
-                                        "kind": "closed"})
-            else:
-                defensive.append(c)
-    for (bot, ticker), op in opens.items():
+            if op is None:
+                continue  # defensive alerts are observations, not imaginary trades
+            pnl = _ref_pnl(op, c["entry_price"])
+            if pnl is not None:
+                s["scored"].append({"ticker": c["ticker"], "pnl": pnl,
+                                    "kind": "closed", "entry_at": op.get("ts"),
+                                    "exit_at": c.get("ts"), "source": key[2]})
+    for (bot, ticker, _), op in opens.items():
         mark = price_fn(ticker)
-        if mark is None:
-            continue
-        pnl = _ref_pnl(op, mark)
-        if pnl is not None:
-            scored[bot].append({"ticker": ticker, "pnl": pnl, "kind": "open"})
-    for c in defensive:
-        mark = price_fn(c["ticker"])
-        if mark is None or not c["entry_price"]:
-            continue
-        pnl = REF_SIZE * (c["entry_price"] - mark) / c["entry_price"]
-        scored[c["bot"]].append({"ticker": c["ticker"], "pnl": pnl,
-                                 "kind": "defensive"})
-    out = {}
-    for bot, n in made.items():
-        rows = scored.get(bot, [])
-        out[bot] = {
-            "calls": n,
-            "scored": rows,
-            "pnl": sum(r["pnl"] for r in rows),
-            "wins": sum(1 for r in rows if r["pnl"] > 0),
-        }
+        if mark is not None and math.isfinite(mark) and mark > 0:
+            pnl = _ref_pnl(op, mark, closed=False)
+            if pnl is not None:
+                out[bot]["open_pnl"] += pnl
+    for s in out.values():
+        s["calls"] = len(s["scored"])
+        s["pnl"] = sum(r["pnl"] for r in s["scored"])
+        s["wins"] = sum(r["pnl"] > 0 for r in s["scored"])
+        s["sessions"] = len({(r["exit_at"] or "")[:10] for r in s["scored"]})
     return out
 
 
@@ -168,10 +207,8 @@ def ranked_bots(standings):
     return rows
 
 
-MIN_PROVEN_CALLS = 5  # EQUALITY PROTOCOL: under 5 calls a bot is
-# UNPROVEN, listed separately, never interleaved with proven
-# standings, and DARWIN cannot bench or breed it: insufficient
-# evidence is not failure.
+MIN_PROVEN_CALLS = 20
+MIN_PROVEN_SESSIONS = 5  # research eligibility, never proof of profitability
 
 
 def split_sources(calls):
@@ -198,7 +235,7 @@ def bot_record(bot, standings=None):
         live, _ = split_sources(load_calls())
         standings = compute_standings(live) if live else {}
     s = standings.get(bot)
-    if not s or s["calls"] < MIN_PROVEN_CALLS:
+    if not s or (s["calls"] < MIN_PROVEN_CALLS or s.get("sessions", 0) < MIN_PROVEN_SESSIONS):
         return "UNPROVEN"
     return (f"{s['calls']} calls, ${s['pnl'] / s['calls']:+,.2f} "
             f"paper P&L per call")
@@ -224,7 +261,7 @@ def active_call_mix(calls=None):
 def _table(lines, standings, only_proven):
     rows_all = ranked_bots(standings)
     rows = [(b, s) for b, s in rows_all
-            if (s["calls"] >= MIN_PROVEN_CALLS) == only_proven]
+            if (s["calls"] >= MIN_PROVEN_CALLS and s.get("sessions", 0) >= MIN_PROVEN_SESSIONS) == only_proven]
     if not rows:
         lines.append("  (none yet)")
         return lines
@@ -247,8 +284,8 @@ def _table(lines, standings, only_proven):
 
 def build_report(calls, standings, arena_standings=None):
     lines = ["THE BOARD - bot leaderboard (paper only, $10k reference "
-             "size per call, never places orders)",
-             "Official standings: LIVE calls only. Nothing is born "
+             "size per trade; $10/order + 5bps/side modeled costs; never places orders)",
+             "Official standings: completed LIVE paper trades only; open marks excluded from rank. Nothing is born "
              "superior; everything is equal until proven better."]
     if not calls:
         lines.append("")
@@ -256,10 +293,10 @@ def build_report(calls, standings, arena_standings=None):
         lines.append("A bot earns its rank, it is not assigned one.")
     else:
         lines.append("")
-        lines.append("PROVEN (5+ live calls):")
+        lines.append("PROVEN (20+ completed live paper trades across 5+ sessions):")
         lines = _table(lines, standings, only_proven=True)
         lines.append("")
-        lines.append("UNPROVEN (under 5 live calls: listed apart, never "
+        lines.append("UNPROVEN (insufficient completed trades or sessions: listed apart, never "
                      "interleaved, protected from benching and breeding; "
                      "insufficient evidence is not failure):")
         lines = _table(lines, standings, only_proven=False)
@@ -285,7 +322,7 @@ def build_report(calls, standings, arena_standings=None):
 
 
 def main():
-    calls = load_calls()
+    calls = load_calls(source=None)
     live, arena = split_sources(calls)
     standings = compute_standings(live) if live else {}
     arena_standings = compute_standings(arena) if arena else {}

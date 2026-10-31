@@ -3,3 +3,12 @@ __pycache__/
 .env
 *.muse-github-snapshot-sync.json
 *.tmp-*
+.pytest_cache/
+*.lock
+output/arena-runs/
+output/courier-outbox.json
+output/seen-orders.json
+output/city-status.json
+output/city-digest-latest.txt
+output/judge_decisions.jsonl
+output/judge_outcomes.jsonl

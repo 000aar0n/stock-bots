@@ -350,7 +350,15 @@ def run_digest(registry, log_calls=False):
         key = (bot, ticker)
         if side in ("buy", "short") and key in opens:
             return
-        log_call(bot, ticker, side, price, reason)
+        record = bots.get(bot, {})
+        if record.get("benched"):
+            return
+        bars = cache.intra(ticker)
+        if not bars:
+            return
+        saved = log_call(bot, ticker, side, bars[-1]["close"], reason, bar_id=str(bars[-1]["ts"]))
+        if saved is None:
+            return
         calls_made[0] += 1
         if side in ("buy", "short"):
             opens.add(key)
@@ -595,7 +603,7 @@ def run_digest(registry, log_calls=False):
     # own name, so THE BOARD ranks captains by escalation quality.
     try:
         from leaderboard import compute_standings, load_calls
-        standings = compute_standings(load_calls(),
+        standings = compute_standings(load_calls(source="live"),
                                       price_fn=cache.last_close)
     except Exception:  # noqa: BLE001
         standings = {}
@@ -603,7 +611,7 @@ def run_digest(registry, log_calls=False):
     def record_of(bot):
         st = standings.get(bot) or {}
         n = st.get("calls", 0)
-        if n < 5:
+        if n < 20 or st.get("sessions", 0) < 5:
             return None  # UNPROVEN
         scored = st.get("scored") or []
         per = (st.get("pnl", 0.0) / len(scored)) if scored else 0.0
@@ -646,6 +654,9 @@ def run_digest(registry, log_calls=False):
         else:
             escalate(cap_name, section_signals.get(section, []))
 
+    from bot_runtime import run_registered_extras
+    lines.extend(run_registered_extras(registry, cache, log_calls))
+
     header = (f"BOT FACTORY DIGEST - {registry['count']} bots registered, "
               f"{len(active)} active, data through "
               f"{(cache.daily('SPY') or [{}])[-1].get('date', 'n/a')}")
@@ -655,27 +666,16 @@ def run_digest(registry, log_calls=False):
 
 
 def cull(registry):
-    from leaderboard import STAFF, compute_standings, load_calls
-    calls = load_calls()
-    ranked_calls = [c for c in calls if c["bot"] not in STAFF]
-    if len(ranked_calls) < 20:
-        print(f"Not enough calls to cull yet: {len(ranked_calls)} ranked "
-              "calls on file, 20 needed.")
+    # One eligibility definition for both entry points; no alert-count bypass.
+    import evolution
+    calls = evolution.load_calls_for_season()
+    _, standings, _ = evolution.pick_standings(calls)
+    plan = evolution.season_plan(registry, standings)
+    if standings["_ranked_calls"] < evolution.MIN_TOTAL_CALLS:
+        print("Not enough completed live trades to cull; no registry changes.")
         return
-    standings = compute_standings(calls)
-    rows = [(b, s) for b, s in standings.items()
-            if b not in STAFF and s["scored"]]
-    rows.sort(key=lambda kv: kv[1]["pnl"])
-    n_bench = max(1, math.ceil(0.10 * len(rows)))
-    to_bench = [b for b, _ in rows[:n_bench]]
-    by_name = {b["name"]: b for b in registry["bots"]}
-    for name in to_bench:
-        if name in by_name:
-            by_name[name]["benched"] = True
-    with open(REGISTRY_PATH, "w") as f:
-        json.dump(registry, f, indent=1)
-    print(f"Culled the bottom {n_bench} of {len(rows)} ranked bots by "
-          f"paper P&L: " + ", ".join(to_bench))
+    evolution.apply_plan(registry, plan, [])
+    print("Benched eligible losing strategies: " + ", ".join(plan["bench"]))
 
 
 def main(argv=None):

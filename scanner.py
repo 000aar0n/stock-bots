@@ -36,6 +36,7 @@ import os
 import sys
 import time
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -134,6 +135,9 @@ def fetch_daily(symbol, retries=2):
                     "low": float(vals[2]), "close": float(vals[3]),
                     "volume": float(vols[i]) if i < len(vols) and vols[i] else 0.0,
                 })
+            # Yahoo may include the current, unfinished daily candle.
+            now = datetime.now(timezone.utc).astimezone(ZoneInfo("America/New_York"))
+            candles = [c for c in candles if c["date"] < now.date().isoformat() or (c["date"] == now.date().isoformat() and now.hour >= 16)]
             candles.sort(key=lambda c: c["date"])
             if len(candles) < 6:
                 raise ValueError(f"only {len(candles)} usable rows for {symbol}")
@@ -186,13 +190,21 @@ def fetch_intraday_candles(symbol, retries=2):
                     "low": float(vals[2]), "close": float(vals[3]),
                     "volume": float(vols[i]) if i < len(vols) and vols[i] else 0.0,
                 })
+            # Five-minute bars are usable only after their interval completes.
+            now_ts = datetime.now(timezone.utc).timestamp()
+            candles = [c for c in candles if c["ts"] + 300 <= now_ts]
             if len(candles) < 2:
-                raise ValueError(f"only {len(candles)} intraday bars for {symbol}")
+                raise ValueError(f"only {len(candles)} completed intraday bars for {symbol}")
             return candles
         except Exception as e:  # noqa: BLE001
             last_err = e
             time.sleep(1.0 * (attempt + 1))
     raise RuntimeError(f"{symbol} intraday: {last_err}")
+
+
+def fetch_intraday(symbol, retries=2):
+    """Compatibility name used by handcrafted bots; honors replay/cache patches."""
+    return fetch_intraday_candles(symbol, retries=retries)
 
 
 def _flag_driver(daily_flag, intraday_flag):

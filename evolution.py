@@ -1,83 +1,10 @@
-"""evolution.py - DARWIN. The seasons and breeding engine.
+"""DARWIN: evidence-gated registry breeding, never a claim of optimality.
 
-The peasant bots were hand built (handcrafted/); the factory bots
-breed. DARWIN runs a season over THE BOARD's paper standings:
-
-ELIGIBILITY (all must hold before anything breeds or is culled):
-  - at least 20 ranked calls on file in total, and
-  - at least 5 calls for an individual bot before THAT bot can
-    breed or be culled.
-Below that, DARWIN prints exactly what is missing and exits 0.
-
-EXEMPT: staff bots only. They are infrastructure (HERALD,
-COURIER, HANDS, THE BOARD and friends), unranked, and outside
-THE BOARD entirely. HANDCRAFTED BOTS ARE NOT EXEMPT (Aaron's
-override): the craftsmen breed and can be benched under exactly
-the same thresholds as factory bots, 20 ranked calls in total
-and 5 per bot. Nobody else is exempt. Unranked bots
-(thermometers, SEXTANT) are not traders and sit seasons out
-because they hold no rank, not because of any exemption.
-
-DOCTRINE (AETIOMORALISM, Aaron's five principles, governing the
-whole city; full text in the README): bots are judged by their
-ACTIONS and the CAUSES logged on those actions, never by origin.
-Handcrafted, factory, arena bred, gen 1 or gen 5: origin earns
-nothing. Above every principle sits the objective pin: the
-city's purpose is to maximize money. FITNESS IS NET PAPER P&L
-PER CALL, with the drawdown guard in the stop rule below; when
-two designs conflict, the one that makes more with less
-drawdown wins. The philosophy governs how bots are treated; the
-scoreboard is money.
-
-CAUSES: every call in calls.jsonl carries a "cause" (the signal
-and readings that fired). When DARWIN clones a winner, the
-offspring record inherits the parent's WINNING causes (the
-causes on its profitable closed trades), and mutations are
-applied to the thresholds around those causes.
-
-ARENA: when live ranked calls are below the eligibility
-threshold, DARWIN may run a season on ARENA standings (backtest
-calls from arena.py, source "backtest"). Offspring bred that way
-are stamped arena_bred in the registry until they prove
-themselves live. An arena champion is not a live champion.
-
-SEASONS LOOP (--seasons N): evaluate, apply one round (or report
-why it cannot), re evaluate, repeat. Each season's fitness is
-recorded in output/fitness.json. STOP RULE: the population is
-OPTIMIZED for the current regime when two consecutive seasons
-each improve the top quartile's average P&L per call by less
-than 2 percent AND the population max drawdown does not worsen.
-Breeding then pauses. A regime change (any THERMOMETER state
-flip in output/thermometers.json) resets the flag and seasons
-resume. Benching is a deployment decision about a strategy's
-recent actions, never a verdict on a bot's existence: benched
-bots keep their full record and can be reinstated.
-
-A SEASON (with --apply; default is a dry run that prints the plan
-and changes nothing):
-  - the bottom quartile of eligible ranked bots by paper P&L is
-    BENCHED (benched true in output/bots.json; the factory digest
-    stops running them)
-  - the top quartile each produce 2 OFFSPRING, registered as new
-    bots with gen = parent gen + 1 and a parent field naming the
-    parent. Mutations are small and honest, drawn from a fixed
-    menu: RSI threshold +/-3, lookback window +/-5 days, timeframe
-    swap (daily <-> daily+5m), strategy swap to a sibling strategy,
-    watchlist narrowed to the parent's best performing half of
-    tickers by its own call history. Offspring names are the
-    parent name plus a generation suffix: CIRCUIT DIP G2A, G2B.
-  - no bot may exceed gen 5. Gen 5 bots are ELDERs: printed as
-    such, they cannot breed further.
-
-Honest limit: offspring are registered in bots.json and carried
-over factory regenerations (records with a parent field survive),
-and THE BOARD ranks any calls logged under their names, but the
-factory digest does not yet execute offspring mutated params as
-distinct logic. Wiring that in is a later phase; the registry and
-the bloodlines are real now.
-
-Run: python3 evolution.py            (dry run, the default)
-     python3 evolution.py --apply   (run the season for real)
+Only completed live paper trades qualify: 20 trades per bot across at least
+five sessions. Arena results and open marks never select production offspring.
+Each evidence set is consumed once; --seasons waits for new closed trades.
+Supported offspring execute actual mutated parameters via bot_runtime.py.
+JUDGE reviews are advisory; breeding never removes the mandatory risk gate.
 """
 
 from __future__ import annotations
@@ -88,13 +15,16 @@ import math
 import os
 import random
 import sys
+import hashlib
+from storage import atomic_json
 from datetime import datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REGISTRY_PATH = os.path.join(HERE, "output", "bots.json")
 
 MIN_TOTAL_CALLS = 20
-MIN_BOT_CALLS = 5
+MIN_BOT_CALLS = 20
+MIN_BOT_SESSIONS = 5
 GEN_CAP = 5
 EXEMPT_KINDS = {"staff"}  # handcrafted bots compete like everyone else
 SIBLING_STRATEGIES = {
@@ -119,8 +49,7 @@ def save_registry(reg):
     for b in reg["bots"]:
         counts[b["kind"]] = counts.get(b["kind"], 0) + 1
     reg["counts_by_kind"] = counts
-    with open(REGISTRY_PATH, "w") as f:
-        json.dump(reg, f, indent=1)
+    atomic_json(REGISTRY_PATH, reg)
 
 
 def bot_gen(rec):
@@ -138,9 +67,11 @@ def eligible_bots(registry, standings):
         if rec["kind"] in EXEMPT_KINDS or not rec.get("ranked"):
             continue
         calls = standings.get(name, {}).get("calls", 0)
-        if calls >= MIN_BOT_CALLS:
+        if (calls >= MIN_BOT_CALLS and standings.get(name, {}).get("sessions", 0) >= MIN_BOT_SESSIONS
+                and not rec.get("benched")):
             pool.append(name)
-    breeders = [n for n in pool if bot_gen(by_name[n]) < GEN_CAP]
+    from bot_runtime import supported
+    breeders = [n for n in pool if bot_gen(by_name[n]) < GEN_CAP and supported(by_name[n])]
     elders = [n for n in pool if bot_gen(by_name[n]) >= GEN_CAP]
     return breeders, pool, elders
 
@@ -176,14 +107,23 @@ def mutate(parent, variant, standings, rng):
            "timeframe": parent.get("timeframe", "daily"),
            "ranked": parent.get("ranked", True), "benched": False,
            "gen": gen, "parent": parent["name"]}
-    params = dict(parent.get("params") or infer_base_params(parent))
+    if parent["kind"] == "handcrafted":
+        from bot_runtime import handcrafted_params, module_for
+        params = dict(parent.get("params") or handcrafted_params(parent, load_registry()))
+        rec["module"] = module_for(parent, load_registry())
+    else:
+        params = dict(parent.get("params") or infer_base_params(parent))
     notes = []
 
     menu = []
     if "rsi_threshold" in params:
         menu.append("rsi")
-    menu.append("lookback")
-    if rec["timeframe"] in TIMEFRAME_SWAPS:
+    if parent["kind"] != "handcrafted":
+        menu.append("lookback")
+    for key in params:
+        if parent["kind"] == "handcrafted":
+            menu.append("constant:" + key)
+    if parent["kind"] != "handcrafted" and rec["timeframe"] in TIMEFRAME_SWAPS:
         menu.append("timeframe")
     parts = parent["name"].rsplit(" ", 1)
     if len(parts) == 2 and parts[1] in SIBLING_STRATEGIES:
@@ -194,7 +134,11 @@ def mutate(parent, variant, standings, rng):
     chosen = menu[:2]
 
     for m in chosen:
-        if m == "rsi":
+        if m.startswith("constant:"):
+            key = m.split(":", 1)[1]
+            params[key] = max(0.1, params[key] + rng.choice([-1, 1]) * (3 if "RSI" in key else .1))
+            notes.append(f"{key} -> {params[key]}")
+        elif m == "rsi":
             delta = rng.choice([-3, 3])
             params["rsi_threshold"] = params["rsi_threshold"] + delta
             notes.append(f"RSI threshold {params['rsi_threshold'] - delta} "
@@ -233,11 +177,11 @@ def season_plan(registry, standings):
     ranked_calls = standings["_ranked_calls"]
     breeders, pool, elders = eligible_bots(registry, standings)
     by_name = {b["name"]: b for b in registry["bots"]}
-    pnl = {n: standings.get(n, {}).get("pnl", 0.0) for n in pool}
+    pnl = {n: standings.get(n, {}).get("pnl", 0.0) / max(1, standings.get(n, {}).get("calls", 0)) for n in pool}
     ordered = sorted(pool, key=lambda n: pnl[n])  # worst first
     q = max(1, math.ceil(len(ordered) * 0.25)) if ordered else 0
-    bench = ordered[:q] if ordered else []
-    top = [n for n in ordered[::-1] if n in breeders][:q] if ordered else []
+    bench = [n for n in ordered[:q] if pnl[n] < 0] if ordered else []
+    top = [n for n in ordered[::-1] if n in breeders and pnl[n] > 0][:q] if ordered else []
     return {"ranked_calls": ranked_calls, "pool": pool,
             "breeders": breeders, "elders": elders, "bench": bench,
             "clone_parents": top, "by_name": by_name, "pnl": pnl}
@@ -247,26 +191,20 @@ FITNESS_PATH = os.path.join(HERE, "output", "fitness.json")
 THERMO_PATH = os.path.join(HERE, "output", "thermometers.json")
 
 
+def load_calls_for_season():
+    from leaderboard import load_calls
+    return load_calls(source="live")
+
+
 def pick_standings(calls):
-    """Choose the board a season runs on. LIVE standings are the
-    official rank; only when live ranked calls are below the
-    eligibility threshold may a season run on ARENA standings
-    (and its offspring are then stamped arena_bred). Returns
-    (mode, standings, subset_of_calls)."""
+    """Only completed live paper evidence can select production offspring.
+
+    Arena replays remain research; reusing a training window is not validation.
+    """
     from leaderboard import STAFF, compute_standings, split_sources
-    live, arena = split_sources(calls)
-    live_ranked = [c for c in live if c["bot"] not in STAFF]
-    if len(live_ranked) >= MIN_TOTAL_CALLS:
-        st = compute_standings(live) if live else {}
-        st["_ranked_calls"] = len(live_ranked)
-        return "live", st, live
-    arena_ranked = [c for c in arena if c["bot"] not in STAFF]
-    if len(arena_ranked) >= MIN_TOTAL_CALLS:
-        st = compute_standings(arena) if arena else {}
-        st["_ranked_calls"] = len(arena_ranked)
-        return "arena", st, arena
-    st = compute_standings(live) if live else {}
-    st["_ranked_calls"] = len(live_ranked)
+    live, _ = split_sources(calls)
+    st = compute_standings(live, price_fn=lambda symbol: None) if live else {}
+    st["_ranked_calls"] = sum(v["calls"] for n,v in st.items() if n not in STAFF)
     return "live", st, live
 
 
@@ -303,6 +241,8 @@ def build_offspring(plan, standings, calls, mode):
         rng = random.Random(f"{parent_name}|{bot_gen(parent)}")
         for variant in ("A", "B"):
             rec, notes = mutate(parent, variant, standings, rng)
+            if not notes:
+                continue  # no executable mutation: never mint a decorative clone
             rec["born_equal"] = True
             rec["fitness"] = None
             rec["hold_style"] = parent.get("hold_style", "intraday")
@@ -354,7 +294,7 @@ def _closed_series(calls):
     opens = {}
     series = {}
     for c in calls:
-        if c["bot"] in STAFF:
+        if c.get("source", "live") != "live" or c["bot"] in STAFF:
             continue
         key = (c["bot"], c["ticker"])
         if c["side"] in ("buy", "short"):
@@ -429,8 +369,7 @@ def load_fitness():
 
 def save_fitness(fit):
     os.makedirs(os.path.dirname(FITNESS_PATH), exist_ok=True)
-    with open(FITNESS_PATH, "w") as f:
-        json.dump(fit, f, indent=1)
+    atomic_json(FITNESS_PATH, fit)
 
 
 def regime_signature():
@@ -441,8 +380,9 @@ def regime_signature():
     if not os.path.exists(THERMO_PATH):
         return None
     import hashlib
-    with open(THERMO_PATH, "rb") as f:
-        return hashlib.sha256(f.read()).hexdigest()[:16]
+    with open(THERMO_PATH) as f:
+        states = {k:v.get("regime") for k,v in json.load(f).items()}
+    return hashlib.sha256(json.dumps(states, sort_keys=True).encode()).hexdigest()[:16]
 
 
 def _improvement(new, old):
@@ -455,6 +395,7 @@ def run_seasons(n):
     from leaderboard import load_calls
     print(f"DARWIN - production loop: up to {n} season(s)")
     fit = load_fitness()
+    fit["optimized"] = False  # a score plateau is never proof of market optimality
     sig = regime_signature()
     if (fit.get("regime_signature") is not None and sig is not None
             and fit["regime_signature"] != sig):
@@ -471,10 +412,16 @@ def run_seasons(n):
         save_fitness(fit)
         return 0
     registry = load_registry()
-    judge_review(apply=True)
+    judge_review(apply=False)  # review evidence; never autonomously remove the risk gate
     for _ in range(n):
-        calls = load_calls()
+        calls = load_calls_for_season()
         mode, standings, subset = pick_standings(calls)
+        closed = [r for n, v in standings.items() if not n.startswith("_") for r in v["scored"]]
+        evidence = hashlib.sha256(json.dumps(closed, sort_keys=True).encode()).hexdigest()
+        if fit.get("last_evidence") == evidence:
+            print("  waiting for new completed live trades; unchanged data is not a new season")
+            break
+        fit["last_evidence"] = evidence
         snap = fitness_snapshot(standings, subset)
         snap["season"] = len(fit["seasons"]) + 1
         snap["board"] = mode
@@ -498,10 +445,11 @@ def run_seasons(n):
                                 b["top_quartile_avg"])
             if (imp1 < 2.0 and imp2 < 2.0
                     and c["pop_max_drawdown"] <= b["pop_max_drawdown"]):
-                fit["optimized"] = True
+                fit["optimized"] = False
+                fit["status"] = "observed plateau; unvalidated"
                 fit["optimized_at_season"] = c["season"]
                 save_fitness(fit)
-                print(f"  OPTIMIZED at season {c['season']}: two "
+                print(f"  OBSERVED PLATEAU (not optimality) at season {c['season']}: two "
                       f"consecutive seasons improved the top quartile "
                       f"by under 2% ({imp1:+.2f}%, {imp2:+.2f}%) and "
                       f"max drawdown did not worsen "
@@ -562,13 +510,15 @@ def main(argv=None):
                     help="run the season for real (default: dry run)")
     ap.add_argument("--seasons", type=int, default=0,
                     help="production loop: run up to N seasons, "
-                         "tracking fitness and the OPTIMIZED stop rule")
+                         "tracking completed-trade evidence and observed plateaus")
     args = ap.parse_args(argv)
     if args.seasons:
         return run_seasons(args.seasons)
+    if args.apply:
+        return run_seasons(1)
 
     from leaderboard import load_calls
-    calls = load_calls()
+    calls = load_calls_for_season()
     mode, standings, subset = pick_standings(calls)
     ranked_calls = standings["_ranked_calls"]
     registry = load_registry()

@@ -45,11 +45,14 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime
+import hashlib
+from storage import locked
+from datetime import datetime, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(HERE, "output")
 DECISIONS_PATH = os.path.join(OUT_DIR, "judge_decisions.jsonl")
+OUTCOMES_PATH = os.path.join(OUT_DIR, "judge_outcomes.jsonl")
 SUMMARY_PATH = os.path.join(OUT_DIR, "judge_scorecard.json")
 TOMBSTONE_PATH = os.path.join(OUT_DIR, "judge_deleted.json")
 REGISTRY_PATH = os.path.join(OUT_DIR, "bots.json")
@@ -65,15 +68,21 @@ SUCCESSION_PRINCIPLE = (
     "generation, no prebuilt successor.")
 
 
-def log_decision(bot, ticker, side, price, action, reason=""):
-    """Record one JUDGE decision. action is 'approved' or 'blocked'.
-    side is the underlying call's side ('buy', 'short', 'exit')."""
+def log_decision(bot, ticker, side, price, action, reason="", bar_id=None):
+    """Deduped decision observation; no current-price counterfactual P&L."""
+    if action not in ("approved", "blocked"):
+        raise ValueError("invalid JUDGE decision")
     os.makedirs(OUT_DIR, exist_ok=True)
-    row = {"ts": datetime.now().isoformat(timespec="seconds"),
-           "bot": bot, "ticker": ticker, "side": side,
-           "entry_price": price, "action": action, "reason": reason}
-    with open(DECISIONS_PATH, "a") as f:
-        f.write(json.dumps(row) + "\n")
+    bar_id = bar_id or datetime.now(timezone.utc).date().isoformat()
+    identity = hashlib.sha256(f"{bot}|{ticker}|{side}|{bar_id}".encode()).hexdigest()
+    with locked(DECISIONS_PATH):
+        if any(d.get("id") == identity for d in load_decisions()):
+            return None
+        row = {"id": identity, "ts": datetime.now(timezone.utc).isoformat(),
+               "bot": bot, "ticker": ticker, "side": side, "entry_price": price,
+               "action": action, "reason": reason, "bar_id": bar_id}
+        with open(DECISIONS_PATH, "a") as handle:
+            handle.write(json.dumps(row) + "\n")
     return row
 
 
@@ -89,53 +98,92 @@ def load_decisions():
     return rows
 
 
+def resolve_pending(fetch_daily=None):
+    """Lock each decision's counterfactual at its session close, once available.
+    This is a common paper evaluation horizon, not realized HTMW performance.
+    """
+    import scanner
+    from market_clock import calendar
+    from zoneinfo import ZoneInfo
+    fetch_daily = fetch_daily or scanner.fetch_daily
+    cache = {}
+    os.makedirs(OUT_DIR, exist_ok=True)
+    with locked(OUTCOMES_PATH):
+        known = set()
+        if os.path.exists(OUTCOMES_PATH):
+            with open(OUTCOMES_PATH) as handle:
+                known = {json.loads(line)["decision_id"] for line in handle if line.strip()}
+        for d in load_decisions():
+            if not d.get("id") or d["id"] in known or d.get("side") not in ("buy", "short"):
+                continue
+            try:
+                observed = datetime.fromisoformat(d["ts"].replace("Z", "+00:00"))
+                day = observed.astimezone(ZoneInfo("America/New_York")).date().isoformat()
+                cal = calendar()
+                if not cal.is_session(day):
+                    continue
+                end = cal.session_close(day).to_pydatetime()
+                if end <= observed or end > datetime.now(timezone.utc):
+                    continue
+                if d["ticker"] not in cache:
+                    cache[d["ticker"]] = fetch_daily(d["ticker"])
+                bar = next((r for r in cache[d["ticker"]] if r["date"] == day), None)
+                if bar is None:
+                    continue
+                outcome = {"decision_id": d["id"], "completed": True,
+                           "exit_price": bar["close"], "exit_at": end.isoformat(),
+                           "basis": "same-session-close counterfactual, not HTMW P/L"}
+                with open(OUTCOMES_PATH, "a") as handle:
+                    handle.write(json.dumps(outcome) + "\n")
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                known.add(d["id"])
+            except (ValueError, KeyError, RuntimeError):
+                continue  # missing actual outcome data stays explicitly unscored
+
+
 def score_decisions(price_fn=None):
-    """Score every logged decision on the $10k paper reference.
-
-    Returns a dict with counts and P&L sums for approved and
-    blocked decisions, plus the verdict fields. Blocked P&L is the
-    would-have-made shadow number (positive means the blocked call
-    would have made money)."""
-    if price_fn is None:
-        import scanner  # lazy: data layer
-        cache = {}
-
-        def price_fn(ticker):
-            if ticker not in cache:
-                try:
-                    cache[ticker] = scanner.fetch_daily(ticker)[-1]["close"]
-                except Exception:  # noqa: BLE001
-                    cache[ticker] = None
-            return cache[ticker]
-
+    """Only explicit completed paper outcomes count. Never re-mark old
+    decisions to today's price, which changes their horizon on every run.
+    Legacy decisions without outcome fields remain unscored.
+    """
+    from leaderboard import _ref_pnl
     approved = {"n": 0, "pnl": 0.0}
     blocked = {"n": 0, "pnl": 0.0}
     unscored = 0
-    for d in load_decisions():
-        if d.get("side") not in ("buy", "short"):
+    seen = set()
+    sessions = set()
+    outcomes = {}
+    if os.path.exists(OUTCOMES_PATH):
+        with open(OUTCOMES_PATH) as handle:
+            outcomes = {r["decision_id"]: r for r in (json.loads(line) for line in handle if line.strip())}
+    for original in load_decisions():
+        d = {**original, **outcomes.get(original.get("id"), {})}
+        key = d.get("id") or (d.get("bot"), d.get("ticker"), d.get("ts"), d.get("side"))
+        if key in seen:
+            continue
+        seen.add(key)
+        if (d.get("side") not in ("buy", "short") or not d.get("completed")
+                or not d.get("exit_at") or not d.get("exit_price")):
             unscored += 1
             continue
-        now = price_fn(d["ticker"])
-        entry = d.get("entry_price")
-        if now is None or not entry:
+        pnl = _ref_pnl(d, d["exit_price"])
+        if pnl is None:
             unscored += 1
             continue
-        if d["side"] == "buy":
-            pnl = (now - entry) / entry * REF_SIZE
-        else:
-            pnl = (entry - now) / entry * REF_SIZE
         bucket = approved if d.get("action") == "approved" else blocked
         bucket["n"] += 1
         bucket["pnl"] += pnl
+        sessions.add(d["exit_at"][:10])
     scored = approved["n"] + blocked["n"]
     return {"scored": scored, "approved": approved, "blocked": blocked,
-            "unscored": unscored,
+            "sessions": len(sessions), "unscored": unscored,
             "net": approved["pnl"] - max(0.0, blocked["pnl"])}
 
 
 def verdict(sc):
     """(verdict, why). Verdicts: INSUFFICIENT, STANDS, DELETE."""
-    if sc["scored"] < MIN_DECISIONS:
+    if sc["scored"] < MIN_DECISIONS or sc.get("sessions", 0) < 5:
         return ("INSUFFICIENT",
                 f"insufficient decisions: {sc['scored']} scored, "
                 f"{MIN_DECISIONS} needed")
@@ -143,7 +191,8 @@ def verdict(sc):
     if ap < 0:
         return ("DELETE",
                 f"approvals lost money in aggregate (${ap:+,.2f})")
-    if bl > ap and bl > 0:
+    if (sc["approved"]["n"] >= MIN_DECISIONS and sc["blocked"]["n"] >= MIN_DECISIONS
+            and bl / sc["blocked"]["n"] > ap / sc["approved"]["n"] and bl > 0):
         return ("DELETE",
                 f"blocked calls would have made clearly more "
                 f"(${bl:+,.2f}) than approvals made (${ap:+,.2f})")

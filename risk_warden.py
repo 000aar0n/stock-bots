@@ -80,14 +80,14 @@ def check(snapshot, scan, day_change_pct=None):
         if not s:
             continue
         last = s["last_close"]
-        if pos["qty"] * last > CAP * value:
+        if abs(pos["qty"] * last) > CAP * value:
             caps.append(sym)
         reasons = []
         entry = pos.get("entry")
-        if entry and (last / entry - 1.0) * 100.0 <= EXIT_PCT:
+        if entry and (last / entry - 1.0) * 100.0 * (1 if pos["qty"] >= 0 else -1) <= EXIT_PCT:
             reasons.append("-8% from entry")
         tail = s.get("closes_tail") or []
-        if len(tail) >= 3 and tail[-1] < tail[-2] < tail[-3]:
+        if len(tail) >= 3 and ((pos["qty"] >= 0 and tail[-1] < tail[-2] < tail[-3]) or (pos["qty"] < 0 and tail[-1] > tail[-2] > tail[-3])):
             reasons.append("two straight red closes")
         if reasons:
             exits.append({"symbol": sym, "reasons": reasons})

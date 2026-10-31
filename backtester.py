@@ -10,8 +10,7 @@ Data: the shared data layer (scanner.fetch_daily). The original
 brief said Stooq; Stooq is unreachable from this VM, so the replay
 runs on Yahoo daily candles like everything else here.
 
-LIMITS (printed with every run): daily candles only, fills assumed
-at the close, no slippage beyond the $10 per order commission, the
+LIMITS (printed with every run): daily candles only, fills at the next session open, 5bps per side slippage plus $10/order commission, the
 symbol list is chosen by us (survivorship), fractional shares, and
 the signals are heuristics. A good replay proves nothing about the
 next six months.
@@ -37,32 +36,34 @@ def backtest_symbol(symbol, candles, start_idx):
     cash, shares, entry = START_EQUITY, 0.0, None
     trades, curve = [], []
     open_trade, equity_at_entry = None, None
+    pending = None
     for i, cd in enumerate(candles):
+        # A signal using a completed close can first fill at the next open.
+        if pending == "buy":
+            equity_at_entry = cash
+            entry = cd["open"]
+            shares = (cash - COMMISSION) / (entry * 1.0005)
+            cash = 0.0
+            open_trade = {"entry_date": cd["date"], "entry": entry}
+        elif pending == "exit" and shares > 0:
+            cash = shares * cd["open"] * .9995 - COMMISSION
+            trades.append({**open_trade, "exit_date": cd["date"], "exit": cd["open"], "pnl": cash - equity_at_entry})
+            shares, entry, open_trade = 0.0, None, None
+        pending = None
         price = cd["close"]
         if i >= WARMUP:
             sig = ta.analyze(candles[:i + 1])
             if shares == 0 and i >= start_idx and sig.get("turning_up"):
-                equity_at_entry = cash
-                shares = (cash - COMMISSION) / price
-                cash, entry = 0.0, price
-                open_trade = {"entry_date": cd["date"], "entry": price}
+                pending = "buy"
             elif shares > 0:
                 two_red = (i >= 2 and candles[i]["close"] < candles[i - 1]["close"]
                            < candles[i - 2]["close"])
                 if price <= entry * 0.92 or two_red:
-                    cash = shares * price - COMMISSION
-                    trades.append({**open_trade, "exit_date": cd["date"],
-                                   "exit": price,
-                                   "pnl": cash - equity_at_entry})
-                    shares, entry, open_trade = 0.0, None, None
+                    pending = "exit"
         curve.append(cash + shares * price)
-    if shares > 0:
-        price = candles[-1]["close"]
-        cash = shares * price - COMMISSION
-        trades.append({**open_trade, "exit_date": candles[-1]["date"],
-                       "exit": price, "pnl": cash - equity_at_entry})
-        curve[-1] = cash
-    peak, max_dd = curve[0], 0.0
+    # Unclosed holdings stay marked; never invent a final liquidation fill.
+    final_equity = curve[-1] if curve else START_EQUITY
+    peak, max_dd = START_EQUITY, 0.0
     for v in curve:
         peak = max(peak, v)
         if peak > 0:
@@ -70,16 +71,16 @@ def backtest_symbol(symbol, candles, start_idx):
     wins = sum(1 for t in trades if t["pnl"] > 0)
     return {
         "symbol": symbol, "trades": len(trades),
-        "final_equity": cash,
-        "total_return_pct": (cash / START_EQUITY - 1.0) * 100.0,
+        "final_equity": final_equity, "open_position": shares > 0,
+        "total_return_pct": (final_equity / START_EQUITY - 1.0) * 100.0,
         "max_drawdown_pct": max_dd,
         "win_rate_pct": (100.0 * wins / len(trades)) if trades else None,
         "trade_list": trades,
     }
 
 
-LIMITS = ("LIMITS: daily candles only, fills assumed at the close, no "
-          "slippage beyond the $10 per order commission, symbol list "
+LIMITS = ("LIMITS: daily candles only, next-open fills, 5bps/side modeled "
+          "slippage plus $10/order commissions, symbol list "
           "chosen by us (survivorship), fractional shares, heuristic "
           "signals. History, not a promise.")
 
