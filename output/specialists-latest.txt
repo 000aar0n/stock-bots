@@ -1,0 +1,72 @@
+CIRCUIT - semiconductors
+  NVDA   $   204.64  1d -4.22%  5d -3.00%  mixed     RSI 35.06  FALLING_KNIFE
+  AVGO   $   326.08  1d -5.48%  5d +1.37%  downtrend RSI 40.76  FALLING_KNIFE
+  AMD    $    504.8  1d -10.88%  5d -2.32%  mixed     RSI 39.67  FALLING_KNIFE
+  MU     $   884.74  1d -5.30%  5d +0.82%  mixed     RSI 41.98  FALLING_KNIFE
+  SMCI   $    32.95  1d -4.30%  5d +0.03%  mixed     RSI 40.35  LATENCY_CANDIDATE
+  INTC   $    65.76  1d -28.58%  5d -24.38%  downtrend RSI 25.1  FALLING_KNIFE LATENCY_CANDIDATE
+  MRVL   $    196.4  1d -10.05%  5d -14.05%  mixed     RSI 33.96  FALLING_KNIFE
+  latency candidates in sector: SMCI, INTC (stale price candidates, verify the HTMW displayed price before any order)
+
+STACK - big tech and software
+  AAPL   $   344.63  1d -1.23%  5d -0.89%  uptrend   RSI 55.35  
+  MSFT   $   521.91  1d -1.55%  5d -0.50%  uptrend   RSI 49.02  
+  GOOGL  $   279.84  1d -1.40%  5d -12.61%  downtrend RSI 21.38  FALLING_KNIFE
+  AMZN   $   240.35  1d -1.41%  5d -3.08%  downtrend RSI 38.26  FALLING_KNIFE
+  META   $   614.99  1d -1.53%  5d -4.30%  downtrend RSI 33.21  FALLING_KNIFE
+  PLTR   $   184.11  1d -6.27%  5d -6.42%  mixed     RSI 41.86  FALLING_KNIFE
+         next earnings: 2026-11-02 (after close), 1 session(s) away
+  NOW    $   105.12  1d -4.15%  5d -33.87%  downtrend RSI 26.86  FALLING_KNIFE
+
+SATOSHI - crypto and fintech
+  COIN   $   143.54  1d -10.62%  5d -12.72%  downtrend RSI 31.91  FALLING_KNIFE LATENCY_CANDIDATE
+  MSTR   $   130.51  1d -7.84%  5d -10.62%  downtrend RSI 40.11  FALLING_KNIFE
+  RIOT   $    12.81  1d -6.77%  5d +2.23%  downtrend RSI 32.62  FALLING_KNIFE LATENCY_CANDIDATE
+         next earnings: 2026-11-04 (time not specified), 3 session(s) away
+  HOOD   $    84.99  1d -7.21%  5d -10.60%  downtrend RSI 29.3  
+  SOFI   $    16.76  1d -4.83%  5d +14.68%  mixed     RSI 56.97  
+  latency candidates in sector: COIN, RIOT (stale price candidates, verify the HTMW displayed price before any order)
+
+REACTOR - nuclear and energy
+  OKLO   $    25.25  1d -5.82%  5d -4.17%  downtrend RSI 28.43  FALLING_KNIFE
+  SMR    $     5.62  1d -5.07%  5d +4.46%  downtrend RSI 35.18  FALLING_KNIFE
+  NNE    $    11.65  1d -4.59%  5d -4.19%  downtrend RSI 30.78  
+  CCJ    $    76.91  1d -7.88%  5d -2.15%  downtrend RSI 35.24  FALLING_KNIFE
+  UUUU   $     7.71  1d -6.32%  5d +2.53%  downtrend RSI 29.68  FALLING_KNIFE
+  CEG    $   262.38  1d -0.83%  5d +3.52%  downtrend RSI 46.61  FALLING_KNIFE
+  VST    $   138.37  1d -1.83%  5d -1.28%  downtrend RSI 42.0  FALLING_KNIFE
+  BWXT   $    130.7  1d -5.24%  5d +2.76%  downtrend RSI 40.69  FALLING_KNIFE
+  XOM    $   187.25  1d +2.16%  5d +2.21%  uptrend   RSI 72.97  
+  CVX    $   235.52  1d +1.75%  5d +0.99%  uptrend   RSI 72.85  
+  LNG    $   330.32  1d +3.57%  5d +10.60%  uptrend   RSI 79.44  
+
+PULSE - biotech and healthcare
+  REGN   $   927.89  1d +13.33%  5d +15.26%  uptrend   RSI 79.11  
+  LLY    $  1417.54  1d +3.19%  5d +11.31%  uptrend   RSI 77.88  
+  UNH    $   406.97  1d -0.96%  5d -2.66%  uptrend   RSI 56.05  
+  MRNA   $   221.72  1d -0.47%  5d +10.80%  uptrend   RSI 57.33  
+
+AEGIS - defense
+  KTOS   $    41.09  1d -5.74%  5d +6.23%  downtrend RSI 45.85  FALLING_KNIFE
+  LMT    $   636.95  1d -1.03%  5d +5.42%  uptrend   RSI 75.5  
+  RTX    $    199.8  1d +0.20%  5d +4.60%  uptrend   RSI 60.77  
+
+CART - consumer and retail
+  WMT    $   123.51  1d +1.86%  5d +3.02%  uptrend   RSI 72.71  
+  COST   $  1012.28  1d +1.63%  5d +0.89%  uptrend   RSI 66.5  
+  CPRI   $    18.68  1d +16.31%  5d +17.71%  uptrend   RSI 73.33  
+  CVNA   $    68.29  1d -0.03%  5d +18.13%  mixed     RSI 62.63  
+
+VAULT - banks and payments
+  JPM    $   337.04  1d -1.90%  5d +1.65%  mixed     RSI 49.05  FALLING_KNIFE
+  BAC    $    50.01  1d -2.21%  5d -1.09%  downtrend RSI 27.67  FALLING_KNIFE
+  GPN    $    96.84  1d +12.97%  5d +16.93%  uptrend   RSI 72.05  TURNING_UP
+         next earnings: 2026-11-05 (before open), 4 session(s) away
+
+ROCKET - high beta momentum bench
+  TSLA   $   399.81  1d -0.87%  5d +7.41%  uptrend   RSI 60.86  
+  RKLB   $    54.73  1d -7.39%  5d +4.05%  downtrend RSI 39.96  FALLING_KNIFE
+  IONQ   $    30.04  1d -5.30%  5d -3.93%  downtrend RSI 34.73  FALLING_KNIFE
+  RDDT   $    91.73  1d -29.22%  5d -36.41%  downtrend RSI 17.45  FALLING_KNIFE
+  SNDK   $  1150.89  1d -13.47%  5d -7.04%  downtrend RSI 32.73  FALLING_KNIFE
+  RBLX   $    42.99  1d -18.05%  5d -18.72%  downtrend RSI 36.91  FALLING_KNIFE

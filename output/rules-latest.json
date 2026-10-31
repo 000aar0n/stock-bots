@@ -1,0 +1,243 @@
+{
+ "portfolio_value": 98142.21,
+ "start_value": 100000.0,
+ "current_gain": -1857.79,
+ "peak_gain": 17428.0,
+ "giveback_pct_of_peak": 110.7,
+ "protect_mode": true,
+ "protect_note": "PROTECT: no new momentum entries until a green day; stat arb entries may continue; ordered rebalances still complete.",
+ "daily_brake": "unknown - no day change supplied",
+ "brake_state": "unknown",
+ "buying_power": 11308.51,
+ "buying_power_shortfall": 3691.49,
+ "buying_power_floor": "BELOW FLOOR by $3,691.49 (buying power $11,308.51 vs $15,000 target)",
+ "positions": [
+  {
+   "symbol": "CVNA",
+   "qty": 809,
+   "entry": 68.6,
+   "last": 68.29,
+   "market_value": 55246.61,
+   "pct_of_portfolio": 56.3,
+   "pct_from_entry": -0.45,
+   "ta_trend": "mixed",
+   "falling_knife": false,
+   "turning_up": false,
+   "directive": "FULL EXIT on Mon Nov 2 - Aaron's decision Sat Oct 31 (replaces any trim-to-cap idea)."
+  },
+  {
+   "symbol": "SOFI",
+   "qty": 1610,
+   "entry": null,
+   "last": 16.76,
+   "market_value": 26983.6,
+   "pct_of_portfolio": 27.5,
+   "pct_from_entry": null,
+   "ta_trend": "mixed",
+   "falling_knife": false,
+   "turning_up": false
+  },
+  {
+   "symbol": "NVDA",
+   "qty": 96,
+   "entry": 206.45,
+   "last": 204.64,
+   "market_value": 19645.44,
+   "pct_of_portfolio": 20.0,
+   "pct_from_entry": -0.88,
+   "ta_trend": "mixed",
+   "falling_knife": true,
+   "turning_up": false
+  },
+  {
+   "symbol": "AVGO",
+   "qty": 60,
+   "entry": 327.7,
+   "last": 326.08,
+   "market_value": 19564.8,
+   "pct_of_portfolio": 19.9,
+   "pct_from_entry": -0.49,
+   "ta_trend": "downtrend",
+   "falling_knife": true,
+   "turning_up": false
+  },
+  {
+   "symbol": "AMZN",
+   "qty": 65,
+   "entry": 238.33,
+   "last": 240.35,
+   "market_value": 15622.75,
+   "pct_of_portfolio": 15.9,
+   "pct_from_entry": 0.85,
+   "ta_trend": "downtrend",
+   "falling_knife": true,
+   "turning_up": false
+  },
+  {
+   "symbol": "MSTR",
+   "qty": 79,
+   "entry": 127.39,
+   "last": 130.51,
+   "market_value": 10310.29,
+   "pct_of_portfolio": 10.5,
+   "pct_from_entry": 2.45,
+   "ta_trend": "downtrend",
+   "falling_knife": true,
+   "turning_up": false
+  },
+  {
+   "symbol": "REGN",
+   "qty": 10,
+   "entry": 911.27,
+   "last": 927.89,
+   "market_value": 9278.9,
+   "pct_of_portfolio": 9.5,
+   "pct_from_entry": 1.82,
+   "ta_trend": "uptrend",
+   "falling_knife": false,
+   "turning_up": false
+  },
+  {
+   "symbol": "CPRI",
+   "qty": 500,
+   "entry": 18.57,
+   "last": 18.68,
+   "market_value": 9340.0,
+   "pct_of_portfolio": 9.5,
+   "pct_from_entry": 0.59,
+   "ta_trend": "uptrend",
+   "falling_knife": false,
+   "turning_up": false
+  },
+  {
+   "symbol": "LNG",
+   "qty": 28,
+   "entry": 328.69,
+   "last": 330.32,
+   "market_value": 9248.96,
+   "pct_of_portfolio": 9.4,
+   "pct_from_entry": 0.5,
+   "ta_trend": "uptrend",
+   "falling_knife": false,
+   "turning_up": false
+  },
+  {
+   "symbol": "GPN",
+   "qty": 100,
+   "entry": 95.57,
+   "last": 96.84,
+   "market_value": 9684.0,
+   "pct_of_portfolio": 9.9,
+   "pct_from_entry": 1.33,
+   "ta_trend": "uptrend",
+   "falling_knife": false,
+   "turning_up": true
+  }
+ ],
+ "cap_violations": [
+  {
+   "symbol": "CVNA",
+   "market_value": 55246.61,
+   "pct_of_portfolio": 56.3,
+   "cap_dollars": 24535.55,
+   "excess_dollars": 30711.06
+  },
+  {
+   "symbol": "SOFI",
+   "market_value": 26983.6,
+   "pct_of_portfolio": 27.5,
+   "cap_dollars": 24535.55,
+   "excess_dollars": 2448.05
+  }
+ ],
+ "exit_flags": [
+  {
+   "symbol": "NVDA",
+   "reasons": [
+    "red at two straight closes"
+   ]
+  },
+  {
+   "symbol": "AVGO",
+   "reasons": [
+    "red at two straight closes"
+   ]
+  },
+  {
+   "symbol": "AMZN",
+   "reasons": [
+    "red at two straight closes"
+   ]
+  },
+  {
+   "symbol": "MSTR",
+   "reasons": [
+    "red at two straight closes"
+   ]
+  }
+ ],
+ "unevaluated": [
+  "SOFI: no entry price, cannot evaluate the -8% exit rule"
+ ],
+ "directives": {
+  "CVNA": "FULL EXIT on Mon Nov 2 - Aaron's decision Sat Oct 31 (replaces any trim-to-cap idea)."
+ },
+ "gross_exposure": 184925.35,
+ "total_envelope": 200000.0,
+ "envelope_used_pct": 92.5,
+ "envelope": "INSIDE envelope (gross $184,925.35 of ~$200,000, 92.5%) but effectively FULLY INVESTED: buying power $11,308.51 is under the $15,000 reserve floor, so no new buys until room is freed.",
+ "arb_candidates": [
+  {
+   "pair": "SOFI/HOOD",
+   "gap_points": 25.28,
+   "long_leg": "HOOD",
+   "short_leg": "SOFI",
+   "exit_trigger": "exit the pair when half the gap has closed, after 3 sessions, or if the gap widens 5 more points",
+   "brake_state": "unknown",
+   "blocked": false,
+   "blocked_reason": null,
+   "caveat": "candidate only - style also requires no fundamental news behind the stretch and no earnings/guidance shock in the last 2 sessions; verify before entering. PROTECT mode does not block stat arb."
+  },
+  {
+   "pair": "AMD/INTC",
+   "gap_points": 22.06,
+   "long_leg": "INTC",
+   "short_leg": "AMD",
+   "exit_trigger": "exit the pair when half the gap has closed, after 3 sessions, or if the gap widens 5 more points",
+   "brake_state": "unknown",
+   "blocked": false,
+   "blocked_reason": null,
+   "caveat": "candidate only - style also requires no fundamental news behind the stretch and no earnings/guidance shock in the last 2 sessions; verify before entering. PROTECT mode does not block stat arb."
+  }
+ ],
+ "buy_candidates": [],
+ "falling_knife_names": [
+  "AKAM",
+  "AMD",
+  "BAC",
+  "BWXT",
+  "CCJ",
+  "CEG",
+  "COIN",
+  "DNN",
+  "GOOGL",
+  "INTC",
+  "IONQ",
+  "JPM",
+  "KTOS",
+  "META",
+  "MRVL",
+  "MU",
+  "NOW",
+  "OKLO",
+  "PLTR",
+  "RBLX",
+  "RDDT",
+  "RIOT",
+  "RKLB",
+  "SMR",
+  "SNDK",
+  "UUUU",
+  "VST"
+ ]
+}

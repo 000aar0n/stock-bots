@@ -1,0 +1,1 @@
+{"ticker": "COIN", "kind": "LATENCY", "detail": "fresh latency candidate: +2.24% over last ~30 min of latest session. Stale price candidate: HTMW quotes are 15 min delayed, so verify against the price HTMW displays before any order.", "ts": "2026-10-31T13:31:42"}

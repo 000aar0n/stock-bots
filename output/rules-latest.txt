@@ -1,0 +1,44 @@
+JUDGE - PROTECTED MOMENTUM RULES ENGINE VERDICTS
+Market regime (QQQ THERMOMETER): risk off - QQQ below its 50 day average, core list breadth 40% above theirs
+Bot paper calls active now: 0 intraday, 0 swing (city default is intraday; swing positions earned the exception)
+Portfolio $98,142.21  gain $-1,857.79 vs $100,000 start  (peak gain $17,428, giveback 110.7% of peak)
+PROTECT mode: ON - PROTECT: no new momentum entries until a green day; stat arb entries may continue; ordered rebalances still complete.
+Daily brake: unknown - no day change supplied
+Buying power floor: BELOW FLOOR by $3,691.49 (buying power $11,308.51 vs $15,000 target)
+Envelope: INSIDE envelope (gross $184,925.35 of ~$200,000, 92.5%) but effectively FULLY INVESTED: buying power $11,308.51 is under the $15,000 reserve floor, so no new buys until room is freed.
+
+POSITIONS
+  CVNA   x809     last $68.29  MV $55,246.61 (56.3% of book)  vs entry -0.5%  trend mixed
+         DIRECTIVE: FULL EXIT on Mon Nov 2 - Aaron's decision Sat Oct 31 (replaces any trim-to-cap idea).
+  SOFI   x1610    last $16.76  MV $26,983.60 (27.5% of book)  trend mixed
+  NVDA   x96      last $204.64  MV $19,645.44 (20.0% of book)  vs entry -0.9%  trend mixed  FALLING_KNIFE
+  AVGO   x60      last $326.08  MV $19,564.80 (19.9% of book)  vs entry -0.5%  trend downtrend  FALLING_KNIFE
+  AMZN   x65      last $240.35  MV $15,622.75 (15.9% of book)  vs entry +0.8%  trend downtrend  FALLING_KNIFE
+  MSTR   x79      last $130.51  MV $10,310.29 (10.5% of book)  vs entry +2.5%  trend downtrend  FALLING_KNIFE
+  GPN    x100     last $96.84  MV $9,684.00 (9.9% of book)  vs entry +1.3%  trend uptrend  TURNING_UP
+  CPRI   x500     last $18.68  MV $9,340.00 (9.5% of book)  vs entry +0.6%  trend uptrend
+  REGN   x10      last $927.89  MV $9,278.90 (9.5% of book)  vs entry +1.8%  trend uptrend
+  LNG    x28      last $330.32  MV $9,248.96 (9.4% of book)  vs entry +0.5%  trend uptrend
+
+SINGLE NAME CAP VIOLATIONS (25% cap)
+  CVNA: $55,246.61 = 56.3% of book, $30,711.06 over the $24,535.55 cap
+  SOFI: $26,983.60 = 27.5% of book, $2,448.05 over the $24,535.55 cap
+
+MOMENTUM EXIT FLAGS (cut at next check per the style)
+  NVDA: red at two straight closes
+  AVGO: red at two straight closes
+  AMZN: red at two straight closes
+  MSTR: red at two straight closes
+
+STAT ARB CANDIDATES (gap >= 10 pts, news check still required)
+  SOFI/HOOD: gap +25.28 pts - long HOOD / short SOFI
+    loss plan: exit the pair when half the gap has closed, after 3 sessions, or if the gap widens 5 more points | brake state: unknown | actionable if the news check clears
+  AMD/INTC: gap +22.06 pts - long INTC / short AMD
+    loss plan: exit the pair when half the gap has closed, after 3 sessions, or if the gap widens 5 more points | brake state: unknown | actionable if the news check clears
+
+Buy candidates: none flagged turning up outside the book in this scan
+
+FALLING KNIFE BLOCK (never buy candidates): AKAM, AMD, BAC, BWXT, CCJ, CEG, COIN, DNN, GOOGL, INTC, IONQ, JPM, KTOS, META, MRVL, MU, NOW, OKLO, PLTR, RBLX, RDDT, RIOT, RKLB, SMR, SNDK, UUUU, VST
+
+COULD NOT EVALUATE:
+  SOFI: no entry price, cannot evaluate the -8% exit rule

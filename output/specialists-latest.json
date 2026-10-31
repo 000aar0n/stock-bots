@@ -1,0 +1,91 @@
+{
+ "CIRCUIT": {
+  "turning_up": [],
+  "falling_knife": [
+   "NVDA",
+   "AVGO",
+   "AMD",
+   "MU",
+   "INTC",
+   "MRVL"
+  ],
+  "latency": [
+   "SMCI",
+   "INTC"
+  ]
+ },
+ "STACK": {
+  "turning_up": [],
+  "falling_knife": [
+   "GOOGL",
+   "AMZN",
+   "META",
+   "PLTR",
+   "NOW"
+  ],
+  "latency": []
+ },
+ "SATOSHI": {
+  "turning_up": [],
+  "falling_knife": [
+   "COIN",
+   "MSTR",
+   "RIOT"
+  ],
+  "latency": [
+   "COIN",
+   "RIOT"
+  ]
+ },
+ "REACTOR": {
+  "turning_up": [],
+  "falling_knife": [
+   "OKLO",
+   "SMR",
+   "CCJ",
+   "UUUU",
+   "CEG",
+   "VST",
+   "BWXT"
+  ],
+  "latency": []
+ },
+ "PULSE": {
+  "turning_up": [],
+  "falling_knife": [],
+  "latency": []
+ },
+ "AEGIS": {
+  "turning_up": [],
+  "falling_knife": [
+   "KTOS"
+  ],
+  "latency": []
+ },
+ "CART": {
+  "turning_up": [],
+  "falling_knife": [],
+  "latency": []
+ },
+ "VAULT": {
+  "turning_up": [
+   "GPN"
+  ],
+  "falling_knife": [
+   "JPM",
+   "BAC"
+  ],
+  "latency": []
+ },
+ "ROCKET": {
+  "turning_up": [],
+  "falling_knife": [
+   "RKLB",
+   "IONQ",
+   "RDDT",
+   "SNDK",
+   "RBLX"
+  ],
+  "latency": []
+ }
+}

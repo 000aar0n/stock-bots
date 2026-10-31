@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.env
+*.muse-github-snapshot-sync.json
+*.tmp-*

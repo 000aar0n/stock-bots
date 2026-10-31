@@ -1,0 +1,24 @@
+{
+ "optimized": false,
+ "optimized_at_season": null,
+ "regime_signature": "6bf29fc781b96614",
+ "seasons": [
+  {
+   "ts": "2026-10-31T14:09:08",
+   "ranked_calls": 0,
+   "pop_avg_pnl_per_call": 0.0,
+   "best_bot": null,
+   "best_avg_pnl_per_call": 0.0,
+   "worst_bot": null,
+   "worst_avg_pnl_per_call": 0.0,
+   "top_quartile_avg": 0.0,
+   "bottom_quartile_avg": 0.0,
+   "quartile_spread": 0.0,
+   "pop_max_drawdown": 0.0,
+   "benched": 0,
+   "born": 0,
+   "season": 1,
+   "board": "live"
+  }
+ ]
+}

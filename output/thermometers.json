@@ -1,0 +1,18 @@
+{
+ "SPY": {
+  "regime": "risk off",
+  "detail": "SPY below its 50 day average, core list breadth 40% above theirs"
+ },
+ "QQQ": {
+  "regime": "risk off",
+  "detail": "QQQ below its 50 day average, core list breadth 40% above theirs"
+ },
+ "IWM": {
+  "regime": "risk off",
+  "detail": "IWM below its 50 day average, core list breadth 40% above theirs"
+ },
+ "DIA": {
+  "regime": "risk off",
+  "detail": "DIA below its 50 day average, core list breadth 40% above theirs"
+ }
+}

@@ -1,0 +1,12 @@
+BOUNCER - independent risk watchdog (shares no code with JUDGE)
+PROTECT mode: ON
+Brake state: full
+Buying power floor: BELOW by $3,691.49
+Cap violations: CVNA, SOFI
+Exit trips (throw them out):
+  NVDA: two straight red closes
+  AVGO: two straight red closes
+  AMZN: two straight red closes
+  MSTR: two straight red closes
+
+Cross check: BOUNCER and JUDGE agree on every check.

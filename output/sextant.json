@@ -1,0 +1,13 @@
+{
+ "generated_at": "2026-10-31T14:11:05",
+ "regime": "risk off",
+ "advice": "arb and defensive only, no new momentum size",
+ "thermometers_above_sma50": {
+  "SPY": false,
+  "QQQ": false,
+  "IWM": false,
+  "DIA": false
+ },
+ "core_breadth_pct": 40.0,
+ "line": "SEXTANT: RISK OFF - arb and defensive only, no new momentum size (thermometers 0/4 indexes above their SMA50, core breadth 40% above theirs)"
+}

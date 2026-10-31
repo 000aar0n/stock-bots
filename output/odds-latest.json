@@ -1,0 +1,65 @@
+[
+ {
+  "ticker": "GPN",
+  "close": 96.84,
+  "expected_gain_pct": 24.54,
+  "expected_loss_pct": 8.0,
+  "ev_score": 16.54,
+  "flags": [],
+  "sources": [
+   "FALCON"
+  ]
+ },
+ {
+  "ticker": "INTC",
+  "close": 65.76,
+  "expected_gain_pct": 12.19,
+  "expected_loss_pct": 3.89,
+  "ev_score": 8.3,
+  "flags": [
+   "latency candidate (counts for)"
+  ],
+  "sources": [
+   "FALCON latency"
+  ]
+ },
+ {
+  "ticker": "COIN",
+  "close": 143.54,
+  "expected_gain_pct": 8.38,
+  "expected_loss_pct": 4.63,
+  "ev_score": 3.75,
+  "flags": [
+   "latency candidate (counts for)"
+  ],
+  "sources": [
+   "FALCON latency"
+  ]
+ },
+ {
+  "ticker": "RIOT",
+  "close": 12.81,
+  "expected_gain_pct": 11.24,
+  "expected_loss_pct": 7.96,
+  "ev_score": 3.28,
+  "flags": [
+   "latency candidate (counts for)"
+  ],
+  "sources": [
+   "FALCON latency"
+  ]
+ },
+ {
+  "ticker": "SMCI",
+  "close": 32.95,
+  "expected_gain_pct": 8.4,
+  "expected_loss_pct": 6.16,
+  "ev_score": 2.24,
+  "flags": [
+   "latency candidate (counts for)"
+  ],
+  "sources": [
+   "FALCON latency"
+  ]
+ }
+]

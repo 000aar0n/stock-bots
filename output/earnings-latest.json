@@ -1,0 +1,53 @@
+{
+ "as_of": "2026-10-31",
+ "rows": [
+  {
+   "ticker": "PLTR",
+   "date": "2026-11-02",
+   "when": "after close",
+   "days_until": 2,
+   "sessions_until": 1,
+   "held_qty": 0,
+   "entry": null,
+   "price_used": 184.11,
+   "exposure": 0.0,
+   "cap": 15000.0,
+   "over_cap": false,
+   "bar": "revenue about $2.18B, EPS about $0.41 to $0.42",
+   "note": "not held; reaction play only, no pre print buy",
+   "flag": false
+  },
+  {
+   "ticker": "RIOT",
+   "date": "2026-11-04",
+   "when": "time not specified",
+   "days_until": 4,
+   "sessions_until": 3,
+   "held_qty": 0,
+   "entry": null,
+   "price_used": 12.81,
+   "exposure": 0.0,
+   "cap": 15000.0,
+   "over_cap": false,
+   "bar": "consensus EPS about -$0.24 to -$0.34, revenue about $160M",
+   "note": "not held; the $15k earnings cap applies if bought",
+   "flag": false
+  },
+  {
+   "ticker": "GPN",
+   "date": "2026-11-05",
+   "when": "before open",
+   "days_until": 5,
+   "sessions_until": 4,
+   "held_qty": 100,
+   "entry": 95.57,
+   "price_used": 96.84,
+   "exposure": 9684.0,
+   "cap": 15000.0,
+   "over_cap": false,
+   "bar": "EPS about $3.57 to $3.58, revenue about $3.18B",
+   "note": "HELD 100 shares at $95.57, about $9.6k, under the cap",
+   "flag": false
+  }
+ ]
+}

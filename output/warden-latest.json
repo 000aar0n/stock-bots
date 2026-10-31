@@ -1,0 +1,36 @@
+{
+ "protect_mode": true,
+ "brake_state": "full",
+ "bp_shortfall": 3691.49,
+ "cap_violations": [
+  "CVNA",
+  "SOFI"
+ ],
+ "exit_flags": [
+  {
+   "symbol": "NVDA",
+   "reasons": [
+    "two straight red closes"
+   ]
+  },
+  {
+   "symbol": "AVGO",
+   "reasons": [
+    "two straight red closes"
+   ]
+  },
+  {
+   "symbol": "AMZN",
+   "reasons": [
+    "two straight red closes"
+   ]
+  },
+  {
+   "symbol": "MSTR",
+   "reasons": [
+    "two straight red closes"
+   ]
+  }
+ ],
+ "disagreements": []
+}

@@ -1,0 +1,1175 @@
+[
+ {
+  "name": "MOSAIC",
+  "file": "mosaic.py",
+  "watchlist": [
+   "NVDA"
+  ],
+  "strategy": "NVDA craftsman: multi timeframe confluence (daily trend, 5m turning_up, daily rel volume over 1.5)",
+  "timeframe": "daily+5m",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "ANVIL",
+  "file": "anvil.py",
+  "watchlist": "CORE",
+  "strategy": "oversold mega cap mean reversion: RSI under 32 plus hammer/engulfing, above SMA200 only",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "FLASH",
+  "file": "flash.py",
+  "watchlist": "CALENDAR",
+  "strategy": "earnings reaction: continuation only when a 5%+ gap holds above its midpoint on rising volume",
+  "timeframe": "daily+5m",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "MIRROR",
+  "file": "mirror.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "short side craftsman: shorts only the fade (up 15%+ in 5 sessions, bearish reversal candle, rising volume)",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "TWINSMITH",
+  "file": "twinsmith.py",
+  "watchlist": [
+   "SOFI",
+   "HOOD",
+   "COIN",
+   "MSTR"
+  ],
+  "strategy": "pairs craftsman: SOFI/HOOD and COIN/MSTR only, gap over 15 pts plus reversal candle on the stretched leg",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "SEXTANT",
+  "file": "sextant.py",
+  "watchlist": [
+   "SPY",
+   "QQQ",
+   "IWM",
+   "DIA"
+  ],
+  "strategy": "regime navigator: positioning advice from the thermometers plus breadth, never trades",
+  "timeframe": "daily",
+  "ranked": false,
+  "hold": "none"
+ },
+ {
+  "name": "PALADIN",
+  "file": "paladin.py",
+  "watchlist": [
+   "AAPL"
+  ],
+  "strategy": "AAPL trend cross: EMA20 crossing above SMA50 entry, cross down exit",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "LANCE",
+  "file": "lance.py",
+  "watchlist": [
+   "TSLA"
+  ],
+  "strategy": "TSLA momentum thrust: 5d over +8% above SMA20 on rel volume over 1.3",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "COMET",
+  "file": "comet.py",
+  "watchlist": [
+   "PLTR"
+  ],
+  "strategy": "PLTR breakout with an RSI band: new 20d high only while RSI sits 55 to 75",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "SURGE",
+  "file": "surge.py",
+  "watchlist": [
+   "AMD"
+  ],
+  "strategy": "AMD MACD flip: histogram crossing positive above SMA20, exit on the flip down",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "DRIFT",
+  "file": "drift.py",
+  "watchlist": [
+   "MSFT"
+  ],
+  "strategy": "MSFT uptrend pullback: buy the EMA20 touch while SMA20 rises, exit under SMA50",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "TEMPEST",
+  "file": "tempest.py",
+  "watchlist": [
+   "COIN"
+  ],
+  "strategy": "COIN high beta momentum: ATR over 4% of price plus turning_up, exit on falling_knife",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "ZEPHYR",
+  "file": "zephyr.py",
+  "watchlist": [
+   "HOOD"
+  ],
+  "strategy": "HOOD momentum: 5d over +6% above SMA50, exit under SMA20",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "BLAZE",
+  "file": "blaze.py",
+  "watchlist": [
+   "MSTR"
+  ],
+  "strategy": "MSTR ignition day: 1d over +3% on rel volume over 1.5, exit under EMA20",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "RIDGE",
+  "file": "ridge.py",
+  "watchlist": [
+   "AVGO"
+  ],
+  "strategy": "AVGO staircase: 10d over +5% with three higher closes in five, exit under SMA20",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "SLIPSTREAM",
+  "file": "slipstream.py",
+  "watchlist": [
+   "RKLB"
+  ],
+  "strategy": "RKLB momentum follower: 5d over +10% on rel volume over 1.2",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "PENDULUM",
+  "file": "pendulum.py",
+  "watchlist": [
+   "QQQ"
+  ],
+  "strategy": "QQQ index mean reversion: RSI under 30 plus a hammer, exit at RSI over 50",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "RUBBER",
+  "file": "rubber.py",
+  "watchlist": [
+   "NVDA"
+  ],
+  "strategy": "NVDA snapback: down 5% in 3 sessions with RSI under 38 above SMA200, exit at +5%",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "SPRING",
+  "file": "spring.py",
+  "watchlist": [
+   "META"
+  ],
+  "strategy": "META oversold quality: RSI under 35 plus doji or hammer above SMA200, exit RSI over 60",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "TIDE",
+  "file": "tide.py",
+  "watchlist": [
+   "AMZN"
+  ],
+  "strategy": "AMZN band wash: close under SMA20 minus 1.5 ATR with RSI under 40, exit back over SMA20",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "MAGNET",
+  "file": "magnet.py",
+  "watchlist": [
+   "GOOGL"
+  ],
+  "strategy": "GOOGL shock dip: single day drop over 4% above SMA200, exit on a +3% bounce day",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "ANCHOR",
+  "file": "anchor.py",
+  "watchlist": [
+   "SOFI"
+  ],
+  "strategy": "SOFI dip in trend: RSI under 35 plus bullish candle above SMA50, exit RSI over 58",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "BASIN",
+  "file": "basin.py",
+  "watchlist": [
+   "BAC"
+  ],
+  "strategy": "BAC range floor: within 3% of the 60d low, green day, RSI under 45, exit at +6%",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "LEDGE",
+  "file": "ledge.py",
+  "watchlist": [
+   "JPM"
+  ],
+  "strategy": "JPM SMA200 support bounce: hammer within 2% above SMA200, exit at SMA50, tight -5% stop",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "HAMMOCK",
+  "file": "hammock.py",
+  "watchlist": [
+   "COST"
+  ],
+  "strategy": "COST lazy dip: down 3% in 10 sessions above SMA200, exit at the prior 10d high",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "UNDERCURRENT",
+  "file": "undercurrent.py",
+  "watchlist": [
+   "UNH"
+  ],
+  "strategy": "UNH capitulation contrarian: three black crows into RSI under 33 above SMA200, exit RSI over 52",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "BREACH",
+  "file": "breach.py",
+  "watchlist": [
+   "MRVL"
+  ],
+  "strategy": "MRVL clean breakout: new 20d high on rel volume over 1.5, exit under the prior 10d low",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "SUMMIT",
+  "file": "summit.py",
+  "watchlist": [
+   "LLY"
+  ],
+  "strategy": "LLY slow breakout: new 50d high, exit under SMA20",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "IGNITE",
+  "file": "ignite.py",
+  "watchlist": [
+   "SMCI"
+  ],
+  "strategy": "SMCI breakout confirmed by MACD over its signal line, exit on the cross down",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "CROWN",
+  "file": "crown.py",
+  "watchlist": [
+   "WMT"
+  ],
+  "strategy": "WMT coronation breakout: new 60d high, exit under SMA50",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "PISTON",
+  "file": "piston.py",
+  "watchlist": [
+   "XOM"
+  ],
+  "strategy": "XOM energy breakout: new 20d high with RSI over 50",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "GATEWAY",
+  "file": "gateway.py",
+  "watchlist": [
+   "NOW"
+  ],
+  "strategy": "NOW recovery breakout: close over the prior 20d high on rel volume over 1.2 after the drawdown",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "SKYLINE",
+  "file": "skyline.py",
+  "watchlist": [
+   "V"
+  ],
+  "strategy": "V steady breakout: new 20d high on a green day, exit under EMA20",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "BREAKWATER",
+  "file": "breakwater.py",
+  "watchlist": [
+   "LNG"
+  ],
+  "strategy": "LNG expanding breakout: new 20d high above SMA50 with ATR expanding vs 10 sessions ago",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "VICE",
+  "file": "vice.py",
+  "watchlist": [
+   "CVNA"
+  ],
+  "strategy": "CVNA squeeze short: up over 20% in 5 sessions plus a shooting star, standard short exits",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "GRAVITY",
+  "file": "gravity.py",
+  "watchlist": [
+   "SMR"
+  ],
+  "strategy": "SMR parabolic short: 5d over +25% with RSI over 78, exit at RSI under 60",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "ECHO",
+  "file": "echo.py",
+  "watchlist": [
+   "RIOT"
+  ],
+  "strategy": "RIOT spike echo short: a +10% day followed by a bearish engulfing red day",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "SIDEWINDER",
+  "file": "sidewinder.py",
+  "watchlist": [
+   "OKLO"
+  ],
+  "strategy": "OKLO rollover short: was up 15%+ five sessions back, now crossing under SMA20",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "HARVEST",
+  "file": "harvest.py",
+  "watchlist": [
+   "NNE"
+  ],
+  "strategy": "NNE climax short: rel volume over 3 plus shooting star after a 12%+ five session run",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "REAPER",
+  "file": "reaper.py",
+  "watchlist": [
+   "UUUU"
+  ],
+  "strategy": "UUUU exhaustion short: RSI over 80 plus a bearish candle, exit at RSI under 65",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "MIRAGE",
+  "file": "mirage.py",
+  "watchlist": [
+   "SNDK"
+  ],
+  "strategy": "SNDK gap fade short: opens gapped up over 6% and closes red the same day",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "DOWNBURST",
+  "file": "downburst.py",
+  "watchlist": [
+   "RDDT"
+  ],
+  "strategy": "RDDT breakdown short: close under the prior 20d low on a red day, exit back over SMA20",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "SLINGSHOT",
+  "file": "slingshot.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "same day gap continuation: gaps up over 4% at the open and closes over its open",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "CATAPULT",
+  "file": "catapult.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "gap down reversal: gaps down over 5%, prints a hammer and closes over the gap midpoint",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "TRAMPOLINE",
+  "file": "trampoline.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "failed gap short: gaps up over 6% and closes red, the bounce that died",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "WAKE",
+  "file": "wake.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "post gap drift, fresh: a 5%+ gap day 2 to 4 sessions ago still holding over its midpoint",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "EMBER",
+  "file": "ember.py",
+  "watchlist": [
+   "INTC"
+  ],
+  "strategy": "INTC shock reversal: after an 8%+ down day inside 5 sessions, first green close over that day's high",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "BACKFILL",
+  "file": "backfill.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "gap fill strength: gaps down over 4% and fully recovers to close at or over the prior close",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "METRONOME",
+  "file": "metronome.py",
+  "watchlist": [
+   "KO"
+  ],
+  "strategy": "KO range clock: buy within 2% of the 20d low at RSI under 45, exit near the 20d high or RSI over 65",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "GYRE",
+  "file": "gyre.py",
+  "watchlist": [
+   "PEP"
+  ],
+  "strategy": "PEP range swirl: doji within 1.5% of the 20d low, exit over SMA20 or at +5%",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "CHANNEL",
+  "file": "channel.py",
+  "watchlist": [
+   "GPN"
+  ],
+  "strategy": "GPN band trade: buy at SMA20 minus one ATR, exit at SMA20 plus one ATR",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "ORBIT",
+  "file": "orbit.py",
+  "watchlist": [
+   "META"
+  ],
+  "strategy": "META sideways orbit: flat SMA50, buy near SMA20 at RSI under 48, exit at RSI over 62",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "TIDEWALL",
+  "file": "tidewall.py",
+  "watchlist": [
+   "CVX"
+  ],
+  "strategy": "CVX wide range: buy within 3% of the 60d low at RSI under 42, exit within 3% of the 60d high",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "STILLWATER",
+  "file": "stillwater.py",
+  "watchlist": [
+   "V"
+  ],
+  "strategy": "V dead calm anticipation: 10d range under 2 ATR, RSI 40 to 50, green day entry before any break",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "COMPASS",
+  "file": "compass.py",
+  "watchlist": [
+   "AAPL",
+   "NVDA",
+   "AVGO",
+   "AMD",
+   "MSFT",
+   "GOOGL",
+   "AMZN",
+   "META",
+   "PLTR",
+   "TSLA",
+   "COIN",
+   "MSTR",
+   "HOOD",
+   "SOFI",
+   "NOW",
+   "INTC",
+   "RBLX",
+   "MU",
+   "SMCI",
+   "IONQ",
+   "RKLB",
+   "CVNA",
+   "RDDT",
+   "SNDK",
+   "MRVL",
+   "RIOT",
+   "AKAM"
+  ],
+  "strategy": "tech relative strength vs QQQ: top name beating QQQ by 5+ points over 5 sessions with turning_up",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "NORTHSTAR",
+  "file": "northstar.py",
+  "watchlist": [
+   "NVDA",
+   "AVGO",
+   "AMD",
+   "MU",
+   "SMCI",
+   "INTC",
+   "MRVL"
+  ],
+  "strategy": "semis relative strength vs SMH: the leader by 5 session RS over 4 points",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "TAILWIND",
+  "file": "tailwind.py",
+  "watchlist": [
+   "XOM",
+   "CVX",
+   "LNG"
+  ],
+  "strategy": "energy relative strength vs XLE: the 5 session leader of the three",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "STANDARD",
+  "file": "standard.py",
+  "watchlist": [
+   "JPM",
+   "BAC"
+  ],
+  "strategy": "banks relative strength vs XLF: JPM vs BAC, buy the 5 session leader if it beats the sector",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "VANGUARD",
+  "file": "vanguard.py",
+  "watchlist": [
+   "REGN",
+   "LLY",
+   "UNH",
+   "MRNA"
+  ],
+  "strategy": "healthcare relative strength vs XLV: the 5 session leader above its SMA50",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "OUTLIER",
+  "file": "outlier.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "whole universe vs SPY: the top 5 session outperformer that also sits above SMA50",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "YOKE",
+  "file": "yoke.py",
+  "watchlist": [
+   "XOM",
+   "CVX"
+  ],
+  "strategy": "oil pair momentum (anti arb): buy the 20 session RS leader of XOM and CVX, exit on a leadership flip",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "TANDEM",
+  "file": "tandem.py",
+  "watchlist": [
+   "NVDA",
+   "AVGO"
+  ],
+  "strategy": "semi twins: buy whichever of NVDA and AVGO is above SMA50 when the other is not",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "CRESCENDO",
+  "file": "crescendo.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "volume climax momentum: rel volume over 2.5, green day, close in the top quartile of the range",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "AVALANCHE",
+  "file": "avalanche.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "volume climax short: rel volume over 2.5, red day, close in the bottom quartile of the range",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "FOAM",
+  "file": "foam.py",
+  "watchlist": [
+   "RKLB",
+   "IONQ",
+   "SNDK"
+  ],
+  "strategy": "froth reversal on the high beta bench: rel volume over 3 plus a hammer after a red day, exit at +8%",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "KINDLING",
+  "file": "kindling.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "volume drought ignition: three quiet days under 0.6 rel volume, then a green day over 1.8",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "COIL",
+  "file": "coil.py",
+  "watchlist": [
+   "TSLA"
+  ],
+  "strategy": "TSLA range coil: five session range under 1.2 ATR, entry on the break of the prior 5d high",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "PRESSURE",
+  "file": "pressure.py",
+  "watchlist": [
+   "NVDA"
+  ],
+  "strategy": "NVDA intraday squeeze: last 12 five minute bars inside 0.6%, entry on the break, exit back inside",
+  "timeframe": "5m",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "KETTLE",
+  "file": "kettle.py",
+  "watchlist": [
+   "AMD"
+  ],
+  "strategy": "AMD simmering squeeze: ATR shrinking vs 10 sessions ago above SMA20, trigger over the prior 10d high",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "WINCH",
+  "file": "winch.py",
+  "watchlist": [
+   "HOOD"
+  ],
+  "strategy": "HOOD tight range release: 10 session range under 3% of price, entry over the 10d high",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "DRIFTER",
+  "file": "drifter.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "post gap drift, mature: a 5%+ gap day 5 to 10 sessions ago, still over the gap day close with SMA20 rising",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "AFTERGLOW",
+  "file": "afterglow.py",
+  "watchlist": [
+   "PLTR"
+  ],
+  "strategy": "PLTR print afterglow: after a 7%+ up day, buy the EMA20 pullback inside 5 sessions while over the gap midpoint",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "LANTERN",
+  "file": "lantern.py",
+  "watchlist": [
+   "GPN"
+  ],
+  "strategy": "GPN earnings lantern: never buys inside 2 sessions of its SIREN print, buys the first green day after it",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "BEACON",
+  "file": "beacon.py",
+  "watchlist": [
+   "RIOT"
+  ],
+  "strategy": "RIOT print beacon: on or after its SIREN date, a 6%+ green day is the entry signal",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "FURNACE",
+  "file": "furnace.py",
+  "watchlist": [
+   "OKLO",
+   "SMR",
+   "NNE",
+   "CCJ",
+   "UUUU",
+   "DNN",
+   "CEG",
+   "VST",
+   "BWXT"
+  ],
+  "strategy": "nuclear basket heat: breadth 60%+ above SMA20 and a positive median 5 session move, top two names",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "SILICON",
+  "file": "silicon.py",
+  "watchlist": [
+   "NVDA",
+   "AVGO",
+   "MU",
+   "SMCI",
+   "MRVL",
+   "AMD"
+  ],
+  "strategy": "AI infra basket: at least four of six with MACD histogram positive, call the highest rel volume riser",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "HARBOR",
+  "file": "harbor.py",
+  "watchlist": [
+   "KO",
+   "PEP",
+   "WMT",
+   "COST",
+   "JPM",
+   "UNH"
+  ],
+  "strategy": "defensive harbor: only active while QQQ sits under SMA50, buys the lowest RSI green name over 30",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "QUARRY",
+  "file": "quarry.py",
+  "watchlist": [
+   "CCJ",
+   "UUUU",
+   "DNN"
+  ],
+  "strategy": "uranium quarry: UUUU is the bellwether, buy a name over SMA20 only when UUUU is turning_up",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "GRIDIRON",
+  "file": "gridiron.py",
+  "watchlist": [
+   "KTOS",
+   "LMT",
+   "RTX"
+  ],
+  "strategy": "defense line: buy whichever name breaks its 20d high, one at a time",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "GREENHOUSE",
+  "file": "greenhouse.py",
+  "watchlist": [
+   "REGN",
+   "LLY",
+   "MRNA"
+  ],
+  "strategy": "biotech greenhouse: buy the turning_up name that sits above SMA200, exit at RSI over 65",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "FOUNDRY",
+  "file": "foundry.py",
+  "watchlist": [
+   "MU",
+   "SMCI",
+   "MRVL",
+   "AVGO"
+  ],
+  "strategy": "infra laggard rotation: when basket breadth is over 50%, buy the worst 5 session name that holds SMA200",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "TANKER",
+  "file": "tanker.py",
+  "watchlist": [
+   "LNG",
+   "XOM",
+   "CVX"
+  ],
+  "strategy": "gas tanker: LNG leads, buy a turning_up name only when LNG is up 3%+ over 5 sessions",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "HELM",
+  "file": "helm.py",
+  "watchlist": "CORE",
+  "strategy": "index gated picker: SPY above SMA50 unlocks the strongest turning_up core name, below it Helm calls nothing",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "BALLAST",
+  "file": "ballast.py",
+  "watchlist": [
+   "RKLB",
+   "IONQ",
+   "SNDK",
+   "CVNA"
+  ],
+  "strategy": "small cap risk appetite: IWM beating SPY by 2+ points over 5 sessions unlocks the top turning_up beta name",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "CROSSCURRENT",
+  "file": "crosscurrent.py",
+  "watchlist": [
+   "JPM",
+   "XOM",
+   "KO",
+   "WMT",
+   "NVDA",
+   "MSFT",
+   "PLTR",
+   "AMZN"
+  ],
+  "strategy": "value growth rotation: DIA beating QQQ over 5 sessions buys the value basket top, otherwise the growth top",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "MERIDIAN",
+  "file": "meridian.py",
+  "watchlist": [
+   "NVDA",
+   "MSFT",
+   "JPM",
+   "XOM",
+   "LLY",
+   "WMT"
+  ],
+  "strategy": "style meridian on 20 session RS: the basket mapped to the strongest index style, its top name only",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "VOYAGER",
+  "file": "voyager.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "swing pullback: in an uptrend, close within 2% over EMA20 with RSI 45 to 55 on a green day, exit at +7%",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "RIDGELINE",
+  "file": "ridgeline.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "swing higher highs: close over the 20d high while that high itself rises, exit under the 10d low",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "SWITCHBACK",
+  "file": "switchback.py",
+  "watchlist": [
+   "TSLA"
+  ],
+  "strategy": "TSLA trend dip: down 7% from the 10d high while above SMA50, hammer entry, exit at the 10d high",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "LONGHAUL",
+  "file": "longhaul.py",
+  "watchlist": [
+   "NVDA"
+  ],
+  "strategy": "NVDA golden trend only: SMA50 over SMA200 and an RSI under 45 pullback, exit if SMA20 breaks SMA50",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "CAMPFIRE",
+  "file": "campfire.py",
+  "watchlist": [
+   "WMT"
+  ],
+  "strategy": "WMT slow swing: buy any 2% down day above SMA200, exit at +4%",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "TRAVERSE",
+  "file": "traverse.py",
+  "watchlist": [
+   "META"
+  ],
+  "strategy": "META range traverse: lower third of the 60d range with RSI under 50 above SMA200, exit in the upper third",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "swing"
+ },
+ {
+  "name": "SCALPEL",
+  "file": "scalpel.py",
+  "watchlist": [
+   "NVDA"
+  ],
+  "strategy": "NVDA intraday scalpel: 5 minute turning_up gated by the daily uptrend, exit on 5 minute falling_knife",
+  "timeframe": "5m",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "NEEDLE",
+  "file": "needle.py",
+  "watchlist": [
+   "SPY"
+  ],
+  "strategy": "SPY intraday thread: 5 minute RSI under 25 plus a 5 minute hammer, exit at 5 minute RSI over 55",
+  "timeframe": "5m",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "RAPID",
+  "file": "rapid.py",
+  "watchlist": [
+   "COIN"
+  ],
+  "strategy": "COIN intraday rapids: 5 minute MACD histogram flips up over the 5 minute EMA20, exit on the flip down",
+  "timeframe": "5m",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "CURRENT",
+  "file": "current.py",
+  "watchlist": [
+   "TSLA"
+  ],
+  "strategy": "TSLA intraday current: last 5 minute close over the session open on rel volume over 1.5, exit back under the open",
+  "timeframe": "5m",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "TIC",
+  "file": "tic.py",
+  "watchlist": [
+   "PLTR"
+  ],
+  "strategy": "PLTR intraday tic breakout: 5 minute close over the prior 12 bar high, tight -3% intraday stop",
+  "timeframe": "5m",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "SENTRY",
+  "file": "sentry.py",
+  "watchlist": [
+   "CVNA",
+   "SOFI",
+   "NVDA",
+   "AVGO",
+   "AMZN",
+   "MSTR",
+   "REGN",
+   "CPRI",
+   "LNG",
+   "GPN"
+  ],
+  "strategy": "book sentry: watches only the held book for style exit trips (two red closes, -8% from known entries), never opens",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "ARBITER",
+  "file": "arbiter.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "timeframe arbiter: calls only when daily AND 5 minute turning_up agree with rel volume over 1.0, exits on either knife",
+  "timeframe": "daily+5m",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "KEYSTONE",
+  "file": "keystone.py",
+  "watchlist": [
+   "NVDA",
+   "MSFT",
+   "PLTR",
+   "KO",
+   "JPM",
+   "UNH",
+   "WMT"
+  ],
+  "strategy": "growth value keystone: QQQ minus SPY 5 session spread over +3 buys the growth top, under -3 the defensive top",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ }
+]

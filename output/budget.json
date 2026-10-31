@@ -1,0 +1,19 @@
+{
+ "reserve": 10000.0,
+ "deployable": 1308.51,
+ "per_name": {
+  "GPN": 1308.51,
+  "INTC": 0.0,
+  "COIN": 0.0,
+  "RIOT": 0.0,
+  "SMCI": 0.0,
+  "SOFI/HOOD": 0.0,
+  "AMD/INTC": 0.0
+ },
+ "caps": {
+  "single_name_cap_pct": 25.0,
+  "earnings_cap": 15000.0
+ },
+ "agreement": true,
+ "buy_mode": true
+}

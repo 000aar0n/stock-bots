@@ -1,0 +1,73 @@
+FALCON - HTMW SCAN  generated 2026-10-31T14:51:12  data through 2026-10-30 (Yahoo daily closes)
+Yahoo intraday probe: available (27 intraday bars for NVDA)
+TA flags are heuristics from ta.py, not predictions.
+
+TOP 10 BY 5-SESSION CHANGE
+  CVNA   $    68.29  1d  -0.03%  5d +18.13%  mixed     RSI  62.63  
+  CPRI   $    18.68  1d +16.31%  5d +17.71%  uptrend   RSI  73.33  
+  GPN    $    96.84  1d +12.97%  5d +16.93%  uptrend   RSI  72.05  TURNING_UP three_white_soldiers
+  CMG    $    31.89  1d  +1.95%  5d +15.88%  downtrend RSI  56.57  shooting_star
+  HII    $   316.88  1d  +0.21%  5d +15.62%  mixed     RSI  75.94  doji
+  REGN   $   927.89  1d +13.33%  5d +15.26%  uptrend   RSI  79.11  
+  SOFI   $    16.76  1d  -4.83%  5d +14.68%  mixed     RSI  56.97  
+  LLY    $  1417.54  1d  +3.19%  5d +11.31%  uptrend   RSI  77.88  
+  RCL    $   307.18  1d  -1.08%  5d +11.10%  uptrend   RSI   66.8  doji
+  MRNA   $   221.72  1d  -0.47%  5d +10.80%  uptrend   RSI  57.33  
+
+BOTTOM 10 BY 5-SESSION CHANGE
+  RDDT   $    91.73  1d -29.22%  5d -36.41%  downtrend RSI  17.45  FALLING_KNIFE
+  NOW    $   105.12  1d  -4.15%  5d -33.87%  downtrend RSI  26.86  FALLING_KNIFE
+  INTC   $    65.76  1d -28.58%  5d -24.38%  downtrend RSI   25.1  FALLING_KNIFE
+  RBLX   $    42.99  1d -18.05%  5d -18.72%  downtrend RSI  36.91  FALLING_KNIFE
+  MRVL   $    196.4  1d -10.05%  5d -14.05%  mixed     RSI  33.96  FALLING_KNIFE
+  NET    $    280.7  1d  -9.54%  5d -13.82%  mixed     RSI  35.66  FALLING_KNIFE
+  DDOG   $   235.27  1d -11.50%  5d -12.75%  mixed     RSI  38.71  FALLING_KNIFE
+  COIN   $   143.54  1d -10.62%  5d -12.72%  downtrend RSI  31.91  FALLING_KNIFE
+  GOOGL  $   279.84  1d  -1.40%  5d -12.61%  downtrend RSI  21.38  FALLING_KNIFE
+  MSTR   $   130.51  1d  -7.84%  5d -10.62%  downtrend RSI  40.11  FALLING_KNIFE
+
+STAT ARB PAIR GAPS (5-session relative performance, points; flag at >= 10)
+  SOFI/HOOD  gap +25.28 pts  long HOOD / short SOFI  <-- AT/OVER ENTRY THRESHOLD
+  AMD/INTC   gap +22.06 pts  long INTC / short AMD  <-- AT/OVER ENTRY THRESHOLD
+  NVDA/AVGO  gap -4.37 pts  long NVDA / short AVGO
+  JPM/BAC    gap +2.74 pts  long BAC / short JPM
+  WMT/COST   gap +2.13 pts  long COST / short WMT
+  COIN/MSTR  gap -2.10 pts  long COIN / short MSTR
+  XOM/CVX    gap +1.22 pts  long CVX / short XOM
+  KO/PEP     gap +0.32 pts  long PEP / short KO
+
+LATENCY CANDIDATES (live price moved sharply in the most recent window; the sim feed is 15 min delayed)
+  INTC   live $    65.76  move  +3.19% over last ~30 min of latest session  [intraday_30m]
+         Stale price candidate: HTMW quotes are 15 min delayed, so verify against the price HTMW displays before any order.
+  COIN   live $   143.54  move  +2.24% over last ~30 min of latest session  [intraday_30m]
+         Stale price candidate: HTMW quotes are 15 min delayed, so verify against the price HTMW displays before any order.
+  SMCI   live $    32.95  move  +2.23% over last ~30 min of latest session  [intraday_30m]
+         Stale price candidate: HTMW quotes are 15 min delayed, so verify against the price HTMW displays before any order.
+  RIOT   live $    12.81  move  +2.19% over last ~30 min of latest session  [intraday_30m]
+         Stale price candidate: HTMW quotes are 15 min delayed, so verify against the price HTMW displays before any order.
+
+CORE INTRADAY (core 20, liquidity and volatility picks: TA on daily AND 5 minute candles; driver = timeframe behind the flag)
+  AAPL   daily[uptrend RSI 55.35]  5m[downtrend RSI 54.87 FALLING_KNIFE]  drivers: falling_knife <- intraday_5m
+  NVDA   daily[mixed RSI 35.06 FALLING_KNIFE]  5m[uptrend RSI 65.02]  drivers: falling_knife <- daily
+  MSFT   daily[uptrend RSI 49.02]  5m[uptrend RSI 52.13]  drivers: no flags
+  GOOGL  daily[downtrend RSI 21.38 FALLING_KNIFE]  5m[uptrend RSI 62.06]  drivers: falling_knife <- daily
+  AMZN   daily[downtrend RSI 38.26 FALLING_KNIFE]  5m[uptrend RSI 62.44]  drivers: falling_knife <- daily
+  META   daily[downtrend RSI 33.21 FALLING_KNIFE]  5m[downtrend RSI 50.94]  drivers: falling_knife <- daily
+  AVGO   daily[downtrend RSI 40.76 FALLING_KNIFE]  5m[uptrend RSI 69.02]  drivers: falling_knife <- daily
+  TSLA   daily[uptrend RSI 60.86]  5m[uptrend RSI 64.55]  drivers: no flags
+  LLY    daily[uptrend RSI 77.88]  5m[downtrend RSI 48.99]  drivers: no flags
+  JPM    daily[mixed RSI 49.05 FALLING_KNIFE]  5m[downtrend RSI 56.62 FALLING_KNIFE]  drivers: falling_knife <- both
+  WMT    daily[uptrend RSI 72.71]  5m[downtrend RSI 43.19 FALLING_KNIFE]  drivers: falling_knife <- intraday_5m
+  V      daily[uptrend RSI 69.44]  5m[downtrend RSI 34.49 FALLING_KNIFE]  drivers: falling_knife <- intraday_5m
+  XOM    daily[uptrend RSI 72.97]  5m[uptrend RSI 62.2]  drivers: no flags
+  COST   daily[uptrend RSI 66.5]  5m[downtrend RSI 31.9 FALLING_KNIFE]  drivers: falling_knife <- intraday_5m
+  AMD    daily[mixed RSI 39.67 FALLING_KNIFE]  5m[uptrend RSI 65.77]  drivers: falling_knife <- daily
+  PLTR   daily[mixed RSI 41.86 FALLING_KNIFE]  5m[downtrend RSI 39.99]  drivers: falling_knife <- daily
+  MU     daily[mixed RSI 41.98 FALLING_KNIFE]  5m[uptrend RSI 70.17]  drivers: falling_knife <- daily
+  COIN   daily[downtrend RSI 31.91 FALLING_KNIFE]  5m[uptrend RSI 79.13]  drivers: falling_knife <- daily
+  MSTR   daily[downtrend RSI 40.11 FALLING_KNIFE]  5m[uptrend RSI 57.47]  drivers: falling_knife <- daily
+  NOW    daily[downtrend RSI 26.86 FALLING_KNIFE]  5m[uptrend RSI 66.2]  drivers: falling_knife <- daily
+
+NOTE: a flagged gap is only a candidate. The style also requires NO fundamental news behind the stretch; earnings or guidance shocks disqualify a pair for 2 sessions. That news check is not automated here.
+
+FETCH ERRORS (1): X

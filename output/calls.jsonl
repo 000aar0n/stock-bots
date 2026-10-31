@@ -1,0 +1,5 @@
+# calls.jsonl - paper calls logged by the decision bots, one JSON object per line.
+# Format: {"bot", "ts", "ticker", "side" (buy|short|exit), "qty_ref" (fixed 10000 reference size), "entry_price", "reason"}
+# For an exit call, entry_price is the price when the exit was logged: it closes that bot's open call on the ticker, or scores as a defensive call (move avoided) if none is open.
+# Paper only. THE BOARD (leaderboard.py) reads this file. Rankings start Monday shadow mode; no calls are logged by test runs.
+{"bot": "RUBBER", "ts": "2026-10-31T14:09:14", "ticker": "NVDA", "side": "buy", "qty_ref": 10000.0, "entry_price": 214.13, "reason": "RUBBER: -5% in 3 sessions, RSI under 38", "cause": "RUBBER: -5% in 3 sessions, RSI under 38", "source": "backtest"}
