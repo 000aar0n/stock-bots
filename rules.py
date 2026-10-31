@@ -139,15 +139,15 @@ def evaluate(snapshot, scan, day_change_pct=None):
                "market_value": None if mval is None else round(mval, 2),
                "pct_of_portfolio": None if mval is None else round(mval / value * 100, 1)}
         position_rows.append(row)
-        if mval is not None and mval > cap_dollars:
+        if mval is not None and abs(mval) > cap_dollars:
             cap_violations.append({
                 "symbol": sym, "market_value": round(mval, 2),
                 "pct_of_portfolio": row["pct_of_portfolio"],
                 "cap_dollars": round(cap_dollars, 2),
-                "excess_dollars": round(mval - cap_dollars, 2)})
+                "excess_dollars": round(abs(mval) - cap_dollars, 2)})
         reasons = []
         if entry is not None and last is not None:
-            pct_entry = (last / entry - 1.0) * 100.0
+            pct_entry = (last / entry - 1.0) * 100.0 * (1 if qty >= 0 else -1)
             row["pct_from_entry"] = round(pct_entry, 2)
             if pct_entry <= EXIT_FROM_ENTRY:
                 reasons.append(f"down {pct_entry:.1f}% from entry "
@@ -159,7 +159,7 @@ def evaluate(snapshot, scan, day_change_pct=None):
                                    "cannot evaluate the -8% exit rule")
         if sdata:
             tail = sdata.get("closes_tail") or []
-            if len(tail) >= 3 and tail[-1] < tail[-2] < tail[-3]:
+            if len(tail) >= 3 and ((qty >= 0 and tail[-1] < tail[-2] < tail[-3]) or (qty < 0 and tail[-1] > tail[-2] > tail[-3])):
                 reasons.append("red at two straight closes")
             t = sdata.get("ta") or {}
             row["ta_trend"] = t.get("trend")
@@ -241,6 +241,12 @@ def evaluate(snapshot, scan, day_change_pct=None):
             continue
         last = s["last_close"]
         blocked_reasons = []
+        if brake_state == "unknown":
+            blocked_reasons.append("day change unavailable: daily brake cannot be verified")
+        if bp is None or bp < BUYING_POWER_FLOOR:
+            blocked_reasons.append("buying power reserve unavailable or below floor")
+        if gross >= TOTAL_ENVELOPE:
+            blocked_reasons.append("gross envelope full")
         if decisions["protect_mode"]:
             blocked_reasons.append(
                 "PROTECT mode: no new momentum entries until a green day")

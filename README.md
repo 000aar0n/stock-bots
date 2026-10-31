@@ -1,5 +1,13 @@
 # HTMW Bot City
 
+## Reliability update
+
+Read [OPERATIONS.md](OPERATIONS.md) for the current autonomous runner, verified
+COURIER delivery, isolated replays, completed-trade rankings and evidence-gated
+breeding. It supersedes conflicting build-day instructions below. Existing roles
+and philosophy are preserved; historical test results below are not current
+validation or proof of profitability.
+
 Python bots for Aaron's HowTheMarketWorks (HTMW) sim trading account
 (portfoliopilot2, fake money), built Sat Oct 31, 2026. They implement
 Protected Momentum in code so the numbers come from deterministic

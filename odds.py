@@ -15,7 +15,7 @@ from data we actually have:
   downside estimate: distance to the nearer of the -8 percent exit
     level and the 20 day low (the support proxy)
 
-  EV score = expected_gain_pct - expected_loss_pct
+  Heuristic score = upside proxy minus downside proxy; not probability-weighted EV
 
 HARD RULE: ODDS ranks, it never promises. Every number here is an
 estimate built from volatility and recent price action, not a
@@ -62,7 +62,7 @@ def _candidates(scan, specialists):
 
 
 def score_candidate(sym, sdata, earnings_rows):
-    """EV score for one candidate. All figures are estimates."""
+    """Heuristic ranking for one candidate. This is not measured expected profit."""
     t = sdata.get("ta") or {}
     close = sdata["last_close"]
     atr_pct = (t["atr14"] / close * 100.0) if t.get("atr14") and close else 0.0
@@ -110,7 +110,8 @@ def score_candidate(sym, sdata, earnings_rows):
     return {"ticker": sym, "close": close,
             "expected_gain_pct": round(expected_gain, 2),
             "expected_loss_pct": round(expected_loss, 2),
-            "ev_score": round(ev, 2), "flags": flags}
+            "ev_score": round(ev, 2), "heuristic_score": round(ev, 2),
+            "calibrated": False, "score_kind": "uncalibrated heuristic", "flags": flags}
 
 
 def build_odds(scan, specialists=None):
@@ -132,8 +133,8 @@ def build_odds(scan, specialists=None):
 
 
 def build_report(rows):
-    lines = ["ODDS - expected value ranking (estimates from volatility, "
-             "not predictions; ODDS ranks, it never promises)"]
+    lines = ["ODDS - heuristic opportunity ranking (estimates from volatility, "
+             "not predictions; uncalibrated heuristic, not statistical expected profit)"]
     lines.append(f"  {'ticker':<7} {'close':>9} {'exp gain':>9} "
                  f"{'exp loss':>9} {'EV':>7}  sources / flags")
     for r in rows:

@@ -43,7 +43,7 @@ def main(argv=None):
     past = status["sessions_until"] is not None and status["sessions_until"] < 0
     green = last > closes[-2] and last > candles[-1]["open"]
     print(f"LANTERN - GPN earnings lantern  last ${last:.2f}  prints "
-          f"{info['date']} ({info['timing']}), sessions until: "
+          f"{info['date']} ({info.get('when', 'time unverified')}), sessions until: "
           f"{status['sessions_until']}")
     op = my_open()
     if op:

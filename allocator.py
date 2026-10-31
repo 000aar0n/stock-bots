@@ -60,6 +60,7 @@ def treasurer_propose(snapshot, decisions, earnings_rows, buy_mode,
     bp = snapshot.get("buying_power") or 0.0
     deployable = max(0.0, bp - reserve)
     value = snapshot["portfolio_value"]
+    existing = {r["symbol"]: abs(r.get("market_value") or 0) for r in decisions.get("positions", [])}
     earn = {r["ticker"]: r for r in earnings_rows}
     ev_map = {r["ticker"]: r["ev_score"] for r in (odds_rows or [])}
 
@@ -74,10 +75,10 @@ def treasurer_propose(snapshot, decisions, earnings_rows, buy_mode,
         if e and e["sessions_until"] <= EARNINGS_WINDOW_SESSIONS:
             cap = min(cap, EARNINGS_CAP)
         singles.append({"name": c["symbol"], "kind": "momentum",
-                        "cap": cap, "ev": ev_map.get(c["symbol"])})
+                        "cap": max(0.0, cap-existing.get(c["symbol"],0)), "ev": ev_map.get(c["symbol"])})
     pairs = []
     for a in decisions.get("arb_candidates", []):
-        if a["blocked"]:
+        if a["blocked"] or not a.get("verified_eligibility", False):
             continue
         pairs.append({"name": a["pair"], "kind": "pair",
                       "strength": abs(a["gap_points"]),
@@ -88,9 +89,9 @@ def treasurer_propose(snapshot, decisions, earnings_rows, buy_mode,
     remaining = deployable
     # Singles first, top down by EV. Negative EV is skipped outright.
     for c in sorted(singles, key=lambda x: -(x["ev"] or 0.0)):
-        if c["ev"] is not None and c["ev"] < 0:
+        if c["ev"] is None or c["ev"] <= 0:
             skipped.append(f"{c['name']}: negative EV score "
-                           f"{c['ev']:+.2f} (ODDS), skipped")
+                           f"{c['ev']} (uncalibrated ODDS score), skipped")
             continue
         budget = min(c["cap"], remaining)
         per_name[c["name"]] = {"budget": round(budget, 2),
@@ -128,6 +129,14 @@ def ledger_verify(snapshot, sheet, earnings_rows):
     total = 0.0
     for name, p in sheet["per_name"].items():
         cap = SINGLE_NAME_CAP * value
+        existing = snapshot.get("positions", {}).get(name, {})
+        # If a proposed name is already held, independently require a verified
+        # current market value rather than assuming its entry cost is exposure.
+        exposure = existing.get("market_value")
+        if existing and exposure is None:
+            problems.append(f"{name}: existing exposure unavailable")
+        if exposure is not None:
+            cap = max(0.0, cap - abs(exposure))
         e = earn.get(name)
         if e and e["sessions_until"] <= EARNINGS_WINDOW_SESSIONS:
             cap = min(cap, EARNINGS_CAP)
@@ -148,7 +157,7 @@ def build_sheet(snapshot, decisions, earnings_rows, buy_mode,
                               extra_candidates=extra_candidates)
     agree, ledger_deployable, problems = ledger_verify(
         snapshot, sheet, earnings_rows)
-    final_deployable = min(sheet["deployable"], ledger_deployable)
+    final_deployable = min(sheet["deployable"], ledger_deployable) if agree else 0.0
     per_name = dict(sheet["per_name"])
     total = sum(p["budget"] for p in per_name.values())
     if total > final_deployable and total > 0:

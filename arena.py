@@ -1,34 +1,11 @@
-"""arena.py - THE ARENA (REWIND's proving ground).
+"""THE ARENA: isolated daily replay with next-session-open paper fills.
 
-Live paper calls accumulate slowly, a handful per session. The
-arena gives the handcrafted craftsmen somewhere to PRODUCE now:
-it replays each bot's own module over historical daily candles,
-one trading day at a time, with the data layer sliced so the bot
-sees only what it would have seen that day. Calls the bot logs
-are written to output/calls.jsonl with source "backtest".
-
-HONEST LABELING, everywhere: THE BOARD's official standings use
-live calls only. Arena standings print separately as ARENA
-RESULTS. An arena champion is not a live champion. DARWIN may
-breed from arena standings only while live calls are below the
-eligibility threshold, and anything it breeds that way is
-stamped ARENA_BRED in the registry until it proves itself live.
-
-Limits, stated plainly: there is no historical 5 minute tape in
-this data layer, so intraday dependent bots (MOSAIC's 5m leg,
-PRESSURE, SCALPEL, NEEDLE, RAPID, CURRENT, TIC, ARBITER) mostly
-stand down or error in the arena; their arena silence is a data
-limit, not a verdict. Arena call timestamps are the run time;
-sequence is append order. Factory bots are not replayed here:
-their rule sets live in the factory digest, which produces live
-in shadow mode instead.
-
-Run: python3 arena.py [--days 20] [--bots RUBBER,VICE]
-     (default: all 100 handcrafted bots, last 20 trading days)
+Each run has its own append-only log. Bots see only daily bars through the
+replay close; historical intraday data is unavailable and fails closed.
+Pending signals fill at the following session open, never the signal close.
+No arena run can read or write the live paper log or influence live eligibility.
 """
-
 from __future__ import annotations
-
 import argparse
 import contextlib
 import importlib.util
@@ -36,109 +13,115 @@ import io
 import json
 import os
 import sys
+import uuid
+from datetime import datetime, time
+from zoneinfo import ZoneInfo
+from unittest.mock import patch
+import leaderboard
+import scanner
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
-
-import leaderboard  # noqa: E402
-import scanner  # noqa: E402
+HERE=os.path.dirname(os.path.abspath(__file__))
 
 
 def load_roster():
-    with open(os.path.join(HERE, "handcrafted", "roster.json")) as f:
-        return json.load(f)
+    with open(os.path.join(HERE,'handcrafted','roster.json')) as handle:
+        return json.load(handle)
 
 
 class Replay:
-    """Sliced data layer: bots see history only up to replay day."""
+    def __init__(self, fetch=None):
+        self.cache={}
+        self.cutoff=None
+        self.fetch=fetch or scanner.fetch_daily
 
-    def __init__(self):
-        self.cache = {}
-        self.cutoff = None  # a date string; candles after it hide
-
-    def full(self, sym):
-        if sym not in self.cache:
-            self.cache[sym] = scanner._real_fetch_daily(sym)
+    def full(self,sym):
+        if sym not in self.cache: self.cache[sym]=self.fetch(sym)
         return self.cache[sym]
 
-    def daily(self, sym):
-        rows = self.full(sym)
-        if self.cutoff is None:
-            return rows
-        return [c for c in rows if c["date"] <= self.cutoff]
+    def daily(self,sym):
+        return [c for c in self.full(sym) if self.cutoff is None or c['date']<=self.cutoff]
 
-    def intraday(self, sym):
-        return []  # no historical intraday tape exists in this layer
+    def intraday(self,*args,**kwargs):
+        raise RuntimeError('historical intraday tape unavailable; replay stands down')
 
 
-def run_arena(days, bot_names):
-    roster = {e["name"]: e for e in load_roster()}
-    names = bot_names or [e["name"] for e in load_roster()]
-    unknown = [n for n in names if n not in roster]
-    if unknown:
-        print(f"ARENA - unknown handcrafted bots: {', '.join(unknown)}")
-        return 1
+def run_arena(days,bot_names):
+    if days<=0: raise ValueError('days must be positive')
+    roster={e['name']:e for e in load_roster()}
+    names=bot_names or list(roster)
+    if set(names)-set(roster): raise ValueError('unknown handcrafted bot')
+    replay=Replay()
+    dates=[c['date'] for c in replay.full('SPY')][-days:]
+    if not dates: raise ValueError('no historical sessions')
+    run_id=str(uuid.uuid4())
+    log_path=os.path.join(HERE,'output','arena-runs',run_id,'calls.jsonl')
+    os.makedirs(os.path.dirname(log_path),exist_ok=True)
+    pending={}
+    real_log=leaderboard.log_call
+    errors=[]
+    written=0
 
-    replay = Replay()
-    scanner._real_fetch_daily = scanner.fetch_daily
-    scanner.fetch_daily = replay.daily
-    scanner.fetch_intraday = replay.intraday
+    def queue(bot,ticker,side,price,reason,cause='',**kwargs):
+        # Price is a signal observation; it is NOT an executable fill.
+        pending[(bot,ticker)]={'bot':bot,'ticker':ticker,'side':side,
+                              'reason':reason,'cause':cause,'signal_at':replay.cutoff}
 
-    written = {"n": 0}
-    real_log = leaderboard.log_call
+    def fill(day):
+        nonlocal written
+        for key,order in list(pending.items()):
+            bar=next((c for c in replay.full(order['ticker']) if c['date']==day),None)
+            if bar is None: continue  # do not invent missing prices
+            if day<=order['signal_at']: continue
+            at=datetime.combine(datetime.fromisoformat(day).date(),time(9,30),ZoneInfo('America/New_York')).isoformat()
+            row=real_log(order['bot'],order['ticker'],order['side'],bar['open'],
+                         order['reason'],cause=order['cause'],source='backtest',
+                         path=log_path,ts=at,bar_id=order['signal_at'])
+            written+=int(row is not None)
+            del pending[key]
 
-    def arena_log(bot, ticker, side, price, reason, cause="",
-                  source="live", path=leaderboard.CALLS_PATH):
-        written["n"] += 1
-        return real_log(bot, ticker, side, price, reason,
-                        cause=cause, source="backtest", path=path)
-
-    leaderboard.log_call = arena_log
-
-    spy = replay.full("SPY")
-    all_dates = [c["date"] for c in spy][-days:]
-    print(f"ARENA - replaying {len(names)} handcrafted bot(s) over "
-          f"{len(all_dates)} trading days "
-          f"({all_dates[0]} to {all_dates[-1]}), source: backtest")
-    errors = 0
-    try:
-        for day in all_dates:
-            replay.cutoff = day
-            for name in names:
-                entry = roster[name]
-                path = os.path.join(HERE, "handcrafted", entry["file"])
-                spec = importlib.util.spec_from_file_location(
-                    f"arena_{entry['file'][:-3]}", path)
-                mod = importlib.util.module_from_spec(spec)
-                try:
-                    spec.loader.exec_module(mod)
-                    with contextlib.redirect_stdout(io.StringIO()):
-                        mod.main(["--log-calls"])
-                except Exception:  # noqa: BLE001
-                    errors += 1
-    finally:
-        scanner.fetch_daily = scanner._real_fetch_daily
-        del scanner._real_fetch_daily
-        leaderboard.log_call = real_log
-    print(f"ARENA - done: {written['n']} backtest call(s) written to "
-          f"output/calls.jsonl (source \"backtest\"), {errors} bot-day "
-          "error(s) stood down (mostly intraday bots with no "
-          "historical 5 minute tape).")
-    print("ARENA - these are arena results, not live rank. See "
-          "leaderboard.py for the separate arena standings.")
+    # All patches restore even if data loading/import/bot execution fails.
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(patch.object(scanner,'fetch_daily',replay.daily))
+        stack.enter_context(patch.object(scanner,'fetch_intraday_candles',replay.intraday))
+        stack.enter_context(patch.object(leaderboard,'log_call',queue))
+        for day in dates:
+            replay.cutoff=day
+            fill(day)
+            at=day+'T16:00:00'+datetime.fromisoformat(day+'T16:00:00').replace(tzinfo=ZoneInfo('America/New_York')).strftime('%z')
+            with leaderboard.paper_context(source='backtest',path=log_path,ts=at,bar_id=day):
+                for name in names:
+                    entry=roster[name]
+                    # Calendar-dependent and intraday bots need actual point-in-time
+                    # data. No present-day substitute is permitted in this replay.
+                    if any(x in entry.get('timeframe','').lower() for x in ('5m','intraday')):
+                        errors.append({'bot':name,'day':day,'error':'historical intraday tape unavailable'})
+                        continue
+                    spec=importlib.util.spec_from_file_location('arena_'+entry['file'][:-3],os.path.join(HERE,'handcrafted',entry['file']))
+                    mod=importlib.util.module_from_spec(spec)
+                    try:
+                        spec.loader.exec_module(mod)
+                        with contextlib.redirect_stdout(io.StringIO()): mod.main(['--log-calls'])
+                    except Exception as error:
+                        errors.append({'bot':name,'day':day,'error':type(error).__name__})
+    from storage import atomic_json
+    atomic_json(os.path.join(os.path.dirname(log_path),'manifest.json'),{
+        'run_id':run_id,'from':dates[0],'to':dates[-1],'fills':written,
+        'errors':errors,'pending_signals':list(pending.values()),
+        'limits':['daily-only; no intraday execution simulation',
+                  'current universe/survivorship; calendar knowledge not point-in-time',
+                  'research only; not eligible for live breeding or official rank']})
+    calls=leaderboard.load_calls(path=log_path,source='backtest')
+    standings=leaderboard.compute_standings(calls,price_fn=lambda s:None)
+    print(f'ARENA: {written} next-open paper fills; {len(errors)} bot-days stood down. Log: {log_path}')
+    print(leaderboard.build_report([],{},standings))
     return 0
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--days", type=int, default=20)
-    ap.add_argument("--bots", default="",
-                    help="comma separated bot names (default: all "
-                         "handcrafted)")
-    args = ap.parse_args(argv)
-    names = [n.strip().upper() for n in args.bots.split(",") if n.strip()]
-    return run_arena(args.days, names)
+    ap=argparse.ArgumentParser()
+    ap.add_argument('--days',type=int,default=20)
+    ap.add_argument('--bots',default='')
+    args=ap.parse_args(argv)
+    return run_arena(args.days,[n.strip().upper() for n in args.bots.split(',') if n.strip()])
 
-
-if __name__ == "__main__":
-    sys.exit(main())
+if __name__=='__main__': sys.exit(main())

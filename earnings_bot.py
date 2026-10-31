@@ -52,6 +52,20 @@ def sessions_until(today, target):
     return n
 
 
+def print_status(symbol, as_of):
+    """Compatibility read for reaction bots, with signed session distance.
+    Calendar entries are manually maintained; no new event is inferred.
+    """
+    event = CALENDAR.get(symbol)
+    if not event:
+        return {"sessions_until": None, "verified": False}
+    today = date.fromisoformat(as_of)
+    target = date.fromisoformat(event["date"])
+    distance = sessions_until(today,target) if target >= today else -sessions_until(target,today)
+    return {"sessions_until": distance, "date": event["date"],
+            "verified": bool(event.get("verified", False))}
+
+
 def load_prices():
     path = os.path.join(HERE, "output", "scan-latest.json")
     try:
