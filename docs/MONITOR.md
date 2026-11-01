@@ -2,7 +2,15 @@
 
 Public site: https://000aar0n.github.io/stock-bots/
 
-The 3D city and interactive map use the same complete registry. Search by bot,
+The full-screen isometric city draws one building per registered bot without
+requiring WebGL or a renderer CDN. Click any sector plot or label to zoom in and
+open every bot in that sector. Click a building or a bot row for details; use
+“All bots in this sector” to return, and Home for the entire city. The Sectors
+menu and search provide keyboard and mobile access. Stats & directory is an
+optional panel below the city. Orbit 3D retains the free-camera renderer as an
+optional view, with the same sector/bot overlay and a working city fallback.
+
+Both city views use the same complete registry. Search by bot,
 ticker or strategy; filter by district, book or role. The page checks the
 published `data.json` once a minute while visible, and on manual Refresh. Failed
 requests preserve the last validated snapshot. No price or account data is

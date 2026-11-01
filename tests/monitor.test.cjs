@@ -92,3 +92,33 @@ test("negative P/L ranks ahead of unscored bots", () => {
     [20, -20],
   );
 });
+
+const cityMap = require('../docs/city-map.js');
+test('city draws every registered bot exactly once and all sector controls', () => {
+  const d=core.validate(fixture()), svg=cityMap.render(d);
+  const ids=[...svg.matchAll(/class="iso-building[^\"]*"[^>]*data-bot="(\d+)"/g)].map(m=>Number(m[1]));
+  assert.equal(ids.length,d.bots.length);
+  assert.equal(new Set(ids).size,d.bots.length);
+  for(const sector of d.districts) assert(svg.includes('aria-label="Open '+sector.label.replaceAll('&','&amp;')+'"'));
+  assert(!/NaN|Infinity/.test(svg));
+});
+test('every focused sector contains its full bot membership and fitted geometry', () => {
+  const d=core.validate(fixture());
+  for(const sector of d.districts) {
+    const rows=d.bots.filter(b=>b.zone===sector.id),svg=cityMap.render(d,sector.id);
+    assert.equal([...svg.matchAll(/class="iso-building/g)].length,rows.length);
+    const [x,y,w,h]=cityMap.bounds(d,sector.id);
+    for(const b of rows) for(const [px,py] of cityMap.box(b.x,b.z,b.w,Math.min(b.h*.5,32)).top) {
+      assert(px>=x && px<=x+w && py>=y && py<=y+h);
+    }
+    for(const b of d.bots.filter(b=>b.zone!==sector.id)) assert(!svg.includes('data-bot="'+b.i+'"'));
+  }
+});
+test('city escapes source labels and does not require a remote renderer', () => {
+  const d=core.validate(fixture());
+  d.bots[0].name='<img src=x onerror=alert(1)>';
+  d.districts[0].label='<script>test</script>';
+  const svg=cityMap.render(d);
+  assert(!svg.includes('<img'));assert(!svg.includes('<script>'));
+  assert(svg.includes('&lt;img'));assert(!svg.includes('https://'));
+});

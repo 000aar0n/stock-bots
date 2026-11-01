@@ -314,7 +314,7 @@ window.addEventListener("city-data", (e) => {
       setInstColor(b, b._base);
     }
   }
-  if (selectedZone) selectZone(selectedZone);
+  // A telemetry refresh does not move the camera or reopen a closed panel.
 });
 let tween = null;
 function flyTo(px, py, pz, tx, ty, tz, dur) {
@@ -382,7 +382,7 @@ function showBot(i, fly) {
   const row = botlist.querySelector('[data-i="' + i + '"]');
   if (row) {
     row.classList.add("flash");
-    row.scrollIntoView({ block: "center" });
+    // The common overlay handles details without scrolling the city page.
     setTimeout(() => row.classList.remove("flash"), 2600);
   }
   flashBot(b);
@@ -515,6 +515,7 @@ window.__selectDistrict = function (z) {
 };
 
 window.__cityHome = () => {
+  selectedZone = null;
   panel.classList.remove("open");
   flyTo(172, 150, 214, 0, 2, 0, 900);
 };
