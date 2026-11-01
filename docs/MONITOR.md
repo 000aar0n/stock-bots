@@ -30,7 +30,11 @@ modeled $10 commissions per side and 5 bps slippage per side. Arena/backtest
 results remain separate. Cached registry fitness is never promoted into the
 production scoreboard. A 20-trade/five-session threshold is an evidence
 threshold, not proof of profitability. Summed strategy results overlap and are
-not HTMW account P/L. Zero completed trades show unavailable P/L.
+not HTMW account P/L. Zero completed trades show unavailable P/L. Each bot detail also shows
+deduplicated production-shadow events, winning closed trades, calculated
+win rate, and last timestamped paper activity. Sorting by win rate or
+recent activity never implies the bot is currently running. Silent bots
+are not assigned fake productivity; staff bots are not trading strategies.
 
 ## Muse host activation
 
