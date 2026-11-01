@@ -367,7 +367,7 @@
           gl = probe.getContext("webgl2") || probe.getContext("webgl");
         if (!gl) throw Error("WebGL unavailable");
         gl.getExtension("WEBGL_lose_context")?.loseContext();
-        threePromise = import("./city-3d.js");
+        threePromise = import("./city-3d.js?v=city3-bafa4ea");
       }
       await Promise.race([
         threePromise,
