@@ -32,6 +32,21 @@ def build_snapshot(root=ROOT, now=None):
     except (ValueError, TypeError, KeyError, OSError):
         warnings.append('Paper call history could not be verified. Performance is unavailable.')
     live, arena = leaderboard.split_sources(calls)
+    # Production-shadow observations are not actual account fills or uptime evidence.
+    last_activity = {}
+    for event in live:
+        bot_name, raw_at = event.get('bot'), event.get('ts')
+        if not isinstance(bot_name, str) or not isinstance(raw_at, str):
+            continue
+        try:
+            at = datetime.fromisoformat(raw_at.replace('Z', '+00:00'))
+            if at.tzinfo is None or at > now:
+                continue
+            current = last_activity.get(bot_name)
+            if current is None or at > current:
+                last_activity[bot_name] = at
+        except ValueError:
+            continue
     try:
         standings = leaderboard.compute_standings(live, price_fn=lambda _: None)
         replay = leaderboard.compute_standings(arena, price_fn=lambda _: None)
@@ -69,6 +84,9 @@ def build_snapshot(root=ROOT, now=None):
             'tickers': [str(t) for t in (bot.get('watchlist') or [])],
             'zone': assigned[i], 'ranked': bool(bot.get('ranked', bot['kind'] not in ('staff','thermometer'))), 'calls': count, 'pnl': pnl,
             'sessions': sessions, 'eligible': eligible,
+            'events': int(s.get('alerts', 0)), 'wins': int(s.get('wins', 0)),
+            'lastActivityAt': last_activity[bot['name']].isoformat()
+                              if bot['name'] in last_activity else None,
             'state': 'benched' if bot.get('benched') else 'registered',
             'arenaCalls': int(a.get('calls', 0)),
             'arenaPnl': a.get('pnl') if a.get('calls', 0) else None,
