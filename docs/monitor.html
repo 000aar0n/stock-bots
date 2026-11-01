@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#0b1016" />
+    <meta
+      name="description"
+      content="Explore Bot City strategies, districts and source-verified shadow performance."
+    />
+    <title>Bot City — Strategy Observatory</title>
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="monitor.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script defer src="monitor-core.js"></script>
+    <script defer src="monitor.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#directory">Skip to bot directory</a>
+    <header class="topbar">
+      <a class="brand" href="#"
+        ><svg viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M3 27V17h6V9h6V4h6v11h7v12M9 27v-6m6 6V15m6 12v-7" /></svg
+        ><span>BOT CITY<small>STRATEGY OBSERVATORY</small></span></a
+      ><span class="header-label">HTMW SIMULATION / SHADOW RESEARCH</span>
+      <nav aria-label="Main">
+        <a href="#directory">Directory ↗</a
+        ><a href="https://github.com/000aar0n/stock-bots">Source ↗</a>
+      </nav>
+    </header>
+    <div class="feedbar">
+      <div>
+        <span class="status-dot" id="feed-dot"></span
+        ><strong id="feed-status" role="status"
+          >Loading published snapshot</strong
+        ><span id="snapshot-time"></span>
+      </div>
+      <button id="refresh" class="quiet">Refresh ↻</button>
+    </div>
+    <p id="feed-error" class="notice" role="status" hidden></p>
+    <main>
+      <section class="observatory" aria-label="Bot city explorer">
+        <aside class="district-sidebar">
+          <div class="section-eyebrow">
+            01 / DISTRICTS <span id="district-count">—</span>
+          </div>
+          <button
+            id="all-districts"
+            class="district active"
+            aria-pressed="true"
+          >
+            <span>Entire city</span><b id="all-count">—</b>
+          </button>
+          <div id="districts"></div>
+          <div class="sidebar-foot">
+            <span class="status-dot muted"></span>
+            <div>
+              <b>Registry ≠ running bots</b>
+              <p id="runtime-label">No verified runner heartbeat.</p>
+            </div>
+          </div>
+        </aside>
+        <div class="city-column">
+          <div class="city-toolbar">
+            <div>
+              <span class="section-eyebrow">CITY EXPLORER</span>
+              <h1 id="city-title">All districts</h1>
+            </div>
+            <div class="view-switch" role="group" aria-label="City view">
+              <button id="view-3d" aria-pressed="false">3D city</button
+              ><button id="view-map" aria-pressed="true">City map</button
+              ><button id="reset-view" aria-label="Reset city view">⌂</button
+              ><button id="fullscreen" aria-label="Enter fullscreen">⛶</button>
+            </div>
+          </div>
+          <div id="stage">
+            <div id="citymap" aria-label="Interactive bot city map"></div>
+            <div id="city-loading" role="status" hidden>Opening 3D city…</div>
+            <div id="tooltip"></div>
+            <aside id="sidepanel" hidden>
+              <button id="spclose" aria-label="Close 3D district panel">
+                ×
+              </button>
+              <h2 id="sp-title"></h2>
+              <div id="sp-sub"></div>
+              <div id="sp-meta"></div>
+              <div id="botdetail"></div>
+              <div id="botlist"></div>
+            </aside>
+            <div class="map-caption">
+              <span id="view-note"
+                >Select a district or a building to inspect its bots.</span
+              ><span
+                ><i class="legend neutral"></i> No completed trades
+                <i class="legend profit"></i> Profit
+                <i class="legend loss"></i> Loss</span
+              >
+            </div>
+          </div>
+          <div class="city-summary">
+            <span><b id="total-bots">—</b> registered bots</span
+            ><span><b id="total-symbols">—</b> watched symbols</span
+            ><span><b id="total-ranked">—</b> with completed shadow trades</span
+            ><span id="view-state">2D / INTERACTIVE</span>
+          </div>
+        </div>
+        <aside class="inspector" id="inspector">
+          <div class="section-eyebrow">
+            02 / INSPECTOR
+            <button
+              id="clear-selection"
+              class="quiet"
+              aria-label="Clear selected bot"
+            >
+              ×
+            </button>
+          </div>
+          <div id="selection">
+            <div class="empty-selection">
+              <span class="crosshair" aria-hidden="true">⌖</span>
+              <h2>A city of strategies.</h2>
+              <p>
+                Select a building or search the directory to inspect a bot’s
+                role, watchlist and evidence.
+              </p>
+              <p class="subtle">
+                Building heights represent roles. Color shows completed shadow
+                P/L when available.
+              </p>
+            </div>
+          </div>
+        </aside>
+      </section>
+      <section class="records" aria-labelledby="records-title">
+        <div>
+          <span class="section-eyebrow">03 / THE BOARD</span>
+          <h2 id="records-title">Evidence before rankings.</h2>
+          <p>
+            Shadow simulation results, separate from actual HTMW account value.
+          </p>
+        </div>
+        <div class="record-value">
+          <span>Summed closed-strategy P/L</span
+          ><strong id="total-pnl">—</strong
+          ><small id="completed-label"
+            >Waiting for completed paper trades</small
+          >
+        </div>
+        <div class="record-value">
+          <span>Evidence threshold met</span
+          ><strong id="eligible-count">—</strong
+          ><small id="evidence-rule"
+            >20 trades across 5 sessions; no guarantee of future results</small
+          >
+        </div>
+      </section>
+      <p id="basis" class="basis"></p>
+      <section
+        id="directory"
+        class="directory"
+        aria-labelledby="directory-title"
+      >
+        <div class="directory-heading">
+          <div>
+            <span class="section-eyebrow">04 / REGISTRY</span>
+            <h2 id="directory-title">Find your bot.</h2>
+          </div>
+          <span id="result-count" aria-live="polite"></span>
+        </div>
+        <div class="filters">
+          <label class="search-box"
+            ><span aria-hidden="true">⌕</span
+            ><input
+              id="search"
+              type="search"
+              placeholder="Search name, ticker or strategy…"
+              aria-label="Search bots"
+              autocomplete="off"
+            /><kbd>/</kbd></label
+          ><label
+            >Role<select id="role">
+              <option value="">All roles</option>
+            </select></label
+          ><label
+            >Book<select id="book">
+              <option value="">All books</option>
+              <option value="intraday">Day book</option>
+              <option value="swing">Long book</option>
+              <option value="none">City staff</option>
+            </select></label
+          ><label
+            >Sort<select id="sort">
+              <option value="name">Name A–Z</option>
+              <option value="pnl">Closed shadow P/L</option>
+              <option value="calls">Completed trades</option>
+            </select></label
+          ><button id="clear-filters" class="quiet">Clear filters</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Bot / strategy</th>
+                <th>District</th>
+                <th>Book</th>
+                <th>Completed</th>
+                <th>Closed shadow P/L</th>
+                <th>Evidence</th>
+              </tr>
+            </thead>
+            <tbody id="bot-rows"></tbody>
+          </table>
+        </div>
+        <div id="empty-results" hidden>
+          <h3>No bots match these filters.</h3>
+          <p>Try a ticker, another role, or clear the filters.</p>
+        </div>
+        <button id="show-more" class="more" hidden>Show more bots</button>
+      </section>
+      <section class="method">
+        <h2>Read the city correctly.</h2>
+        <p>
+          Each bot is an independent strategy. Summing their simulated results
+          can count overlapping ideas; this is not an investable portfolio
+          return. Open positions and backtests do not enter the closed shadow
+          scoreboard. A fresh page fetch does not prove the runner is online.
+        </p>
+        <p id="data-notes">
+          The monitor checks for a newer published snapshot every minute. Runner
+          and paper-event timestamps remain unchanged until the source records
+          change.
+        </p>
+      </section>
+    </main>
+    <footer>
+      <span>BOT CITY / PAPER RESEARCH</span
+      ><span id="checked-time">No successful check yet</span
+      ><a
+        href="https://github.com/000aar0n/stock-bots/blob/main/docs/MONITOR.md"
+        >Data &amp; publishing guide ↗</a
+      >
+    </footer>
+    <noscript
+      ><section class="noscript">
+        <h2>Bot registry</h2>
+        <p>
+          Enable JavaScript for the interactive city and performance. This is
+          the last built registry.
+        </p>
+        <ul>
+          <!-- NOSCRIPT_BOTS -->
+        </ul>
+      </section></noscript
+    >
+  </body>
+</html>
