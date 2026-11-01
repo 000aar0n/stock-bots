@@ -73,6 +73,12 @@
         calls: b.calls,
         pnl: b.calls ? b.pnl : null,
         sessions: Number.isInteger(b.sessions) ? Math.max(0, b.sessions) : 0,
+        events: Number.isInteger(b.events) && b.events >= 0 ? b.events : 0,
+        wins: Number.isInteger(b.wins) && b.wins >= 0 && b.wins <= b.calls ? b.wins : 0,
+        winRate: b.calls && Number.isInteger(b.wins) && b.wins >= 0 && b.wins <= b.calls
+          ? (100 * b.wins) / b.calls : null,
+        lastActivityAt: validTime(b.lastActivityAt) && Date.parse(b.lastActivityAt) <= now + 60000
+          ? b.lastActivityAt : null,
         eligible: b.eligible === true,
         state: b.state === "benched" ? "benched" : "registered",
         ranked: b.ranked === true,
@@ -193,7 +199,14 @@
             a.name.localeCompare(b.name)
           : sort === "calls"
             ? b.calls - a.calls || a.name.localeCompare(b.name)
-            : a.name.localeCompare(b.name),
+            : sort === "winrate"
+              ? (b.winRate ?? -Infinity) - (a.winRate ?? -Infinity) ||
+                b.calls - a.calls || a.name.localeCompare(b.name)
+              : sort === "recent"
+                ? (b.lastActivityAt ? Date.parse(b.lastActivityAt) : -Infinity) -
+                  (a.lastActivityAt ? Date.parse(a.lastActivityAt) : -Infinity) ||
+                  a.name.localeCompare(b.name)
+                : a.name.localeCompare(b.name),
       );
   }
   const api = { validate, freshness, filterBots };
