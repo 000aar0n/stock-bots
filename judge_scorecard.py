@@ -86,11 +86,12 @@ def log_decision(bot, ticker, side, price, action, reason="", bar_id=None):
     return row
 
 
-def load_decisions():
-    if not os.path.exists(DECISIONS_PATH):
+def load_decisions(path=None):
+    path = path or DECISIONS_PATH
+    if not os.path.exists(path):
         return []
     rows = []
-    with open(DECISIONS_PATH) as f:
+    with open(path) as f:
         for line in f:
             line = line.strip()
             if line:
@@ -142,7 +143,7 @@ def resolve_pending(fetch_daily=None):
                 continue  # missing actual outcome data stays explicitly unscored
 
 
-def score_decisions(price_fn=None):
+def score_decisions(price_fn=None, decisions_path=None, outcomes_path=None):
     """Only explicit completed paper outcomes count. Never re-mark old
     decisions to today's price, which changes their horizon on every run.
     Legacy decisions without outcome fields remain unscored.
@@ -154,10 +155,11 @@ def score_decisions(price_fn=None):
     seen = set()
     sessions = set()
     outcomes = {}
-    if os.path.exists(OUTCOMES_PATH):
-        with open(OUTCOMES_PATH) as handle:
+    outcomes_path = outcomes_path or OUTCOMES_PATH
+    if os.path.exists(outcomes_path):
+        with open(outcomes_path) as handle:
             outcomes = {r["decision_id"]: r for r in (json.loads(line) for line in handle if line.strip())}
-    for original in load_decisions():
+    for original in load_decisions(decisions_path):
         d = {**original, **outcomes.get(original.get("id"), {})}
         key = d.get("id") or (d.get("bot"), d.get("ticker"), d.get("ts"), d.get("side"))
         if key in seen:

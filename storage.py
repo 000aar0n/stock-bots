@@ -17,13 +17,14 @@ def locked(path, blocking=True):
             fcntl.flock(handle, fcntl.LOCK_UN)
 
 
-def atomic_json(path, value):
+def atomic_json(path, value, *, indent=2):
     directory = os.path.dirname(os.path.abspath(path))
     os.makedirs(directory, exist_ok=True)
     fd, temporary = tempfile.mkstemp(dir=directory, prefix='.write-')
     try:
         with os.fdopen(fd, 'w') as handle:
-            json.dump(value, handle, indent=2, allow_nan=False)
+            json.dump(value, handle, indent=indent, allow_nan=False,
+                      separators=(',', ':') if indent is None else None)
             handle.write('\n')
             handle.flush()
             os.fsync(handle.fileno())

@@ -14,3 +14,8 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest -q
       - run: python -m compileall -q .
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/monitor.test.cjs
+      - run: node --check docs/monitor.js && node --check docs/city-3d.js
