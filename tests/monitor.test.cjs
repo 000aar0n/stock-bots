@@ -78,6 +78,22 @@ test("untrusted HTML and summary are not accepted from data", () => {
   assert.equal(d.summary.pnl, null);
   assert.equal(d.summary.bots, raw.bots.length);
 });
+test("per-bot productivity uses completed trades, and activity sorts", () => {
+  const raw = fixture();
+  raw.bots[0].calls = 4;
+  raw.bots[0].wins = 3;
+  raw.bots[0].events = 10;
+  raw.bots[0].lastActivityAt = "2026-10-30T17:00:00Z";
+  raw.bots[1].calls = 2;
+  raw.bots[1].wins = 2;
+  raw.bots[1].lastActivityAt = "2026-10-30T16:00:00Z";
+  const d = core.validate(raw);
+  assert.equal(d.bots[0].winRate, 75);
+  assert.equal(d.bots[0].events, 10);
+  assert.equal(d.bots[2].winRate, null);
+  assert.equal(core.filterBots(d, {sort: "winrate"})[0].i, 1);
+  assert.equal(core.filterBots(d, {sort: "recent"})[0].i, 0);
+});
 test("negative P/L ranks ahead of unscored bots", () => {
   const d = core.validate(fixture());
   d.bots[0].pnl = -20;
