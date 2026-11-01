@@ -41,7 +41,6 @@
     threePromise = null,
     threeFailed = false,
     want3d = false;
-  const empty = $("selection").innerHTML;
   function color(b) {
     return b.pnl === null ? "" : b.pnl >= 0 ? "positive" : "negative";
   }
@@ -111,81 +110,19 @@
       .join("");
   }
   function map() {
-    const focus = data.districts.find((d) => d.id === zone);
-    const viewport = focus
-      ? `${focus.cx - 43} ${focus.cz - 52} 86 96`
-      : "-170 -184 350 360";
-    const districts = data.districts
-      .filter((d) => !zone || d.id === zone)
-      .map((d) => {
-        const bots = data.bots.filter((b) => b.zone === d.id);
-        return (
-          '<g class="map-district' +
-          (zone === d.id ? " selected" : "") +
-          '" data-zone="' +
-          d.id +
-          '" role="button" tabindex="0" aria-label="' +
-          esc(d.label) +
-          ", " +
-          d.count +
-          ' bots"><rect class="district-ground" x="' +
-          (d.cx - 36) +
-          '" y="' +
-          (d.cz - 36) +
-          '" width="72" height="72" rx="3" fill="#14212a" stroke="#30454f"/><text x="' +
-          (d.cx - 34) +
-          '" y="' +
-          (d.cz - 41) +
-          '">' +
-          esc(d.id.toUpperCase()) +
-          " / " +
-          d.count +
-          "</text>" +
-          bots
-            .map(
-              (b) =>
-                '<rect aria-hidden="true" class="map-building' +
-                (selected === b.i ? " selected" : "") +
-                '" data-bot="' +
-                b.i +
-                '" x="' +
-                (b.x - b.w / 2) +
-                '" y="' +
-                (b.z - b.w / 2) +
-                '" width="' +
-                b.w +
-                '" height="' +
-                b.w +
-                '" rx=".5" fill="' +
-                (b.pnl === null
-                  ? d.color
-                  : b.pnl >= 0
-                    ? "#9be5cd"
-                    : "#ef8f95") +
-                '" opacity="' +
-                (zone && zone !== d.id
-                  ? 0.25
-                  : 0.5 + Math.min(b.h / 80, 0.45)) +
-                '"><title>' +
-                esc(b.name) +
-                " · " +
-                (b.pnl === null
-                  ? "No completed shadow trades"
-                  : money(b.pnl) + " closed shadow P/L") +
-                "</title></rect>",
-            )
-            .join("") +
-          "</g>"
-        );
-      });
-    $("citymap").innerHTML =
-      '<svg viewBox="' +
-      viewport +
-      '" role="group" aria-label="Bot city districts"><defs><pattern id="street-grid" width="13" height="13" patternUnits="userSpaceOnUse"><path d="M13 0H0V13" fill="none" stroke="#182832" stroke-width=".4"/></pattern></defs><rect x="-175" y="-185" width="360" height="370" fill="url(#street-grid)"/>' +
-      districts.join("") +
-      '<text x="0" y="146" fill="#506c78" font-family="monospace" font-size="8">BOT CITY / ' +
-      data.summary.bots +
-      ' STRATEGIES</text><path d="M80 160H155m0 0-4-3m4 3-4 3" stroke="#506c78" fill="none"/></svg>';
+    if (data) {
+      $("citymap").innerHTML = CityMap.render(data, zone, selected);
+      $("citymap").classList.toggle("focused", Boolean(zone));
+      if (!zone && innerWidth <= 700) $("citymap").scrollLeft = ($("citymap").scrollWidth - $("citymap").clientWidth) / 2;
+    }
+  }
+  function sectorPanel() {
+    if (!data || selected !== null) return;
+    const d = data.districts.find((d) => d.id === zone);
+    const rows = CityCore.filterBots(data, { zone, query: $("city-search").value });
+    $("selection").innerHTML = '<h2>' + esc(d?.label || 'All city bots') + '</h2><p>' +
+      esc(d?.sub || 'Every bot in your registry, grouped into city sectors.') + '</p><p class="sector-count">' + rows.length + ' bots</p><div class="sector-bots">' + rows.map(b =>
+      '<button class="sector-bot" data-bot="' + b.i + '"><span>' + esc(b.name) + '</span><small>' + esc(b.kind) + ' · ' + esc(b.book) + '</small></button>').join('') + (rows.length ? '' : '<p>No bots match. Try a name or ticker.</p>') + '</div>';
   }
   function directory() {
     if (!data) return;
@@ -234,7 +171,7 @@
   }
   function inspect() {
     if (selected === null) {
-      $("selection").innerHTML = empty;
+      sectorPanel();
       return;
     }
     const b = data.bots.find((b) => b.i === selected);
@@ -245,7 +182,7 @@
     }
     const d = data.districts.find((d) => d.id === b.zone);
     $("selection").innerHTML =
-      '<div><span class="bot-kind">' +
+      '<button class="back-sector" data-back-sector>← All bots in this sector</button><div><span class="bot-kind">' +
       esc(b.kind.toUpperCase()) +
       '</span><span class="bot-kind">' +
       esc(b.book) +
@@ -300,6 +237,12 @@
   }
   function selectZone(id, fromScene = false) {
     zone = id;
+    selected = null;
+    $("city-search").value = "";
+    document.body.classList.toggle("panel-open", Boolean(id));
+    document.body.classList.remove("sectors-open");
+    $("toggle-sectors").setAttribute("aria-expanded", "false");
+    sectorPanel();
     limit = 40;
     $("city-title").textContent =
       data.districts.find((d) => d.id === id)?.label || "All districts";
@@ -313,7 +256,16 @@
   }
   function selectBot(id, fromScene = false) {
     selected = id;
+    const active = data.bots.find(b => b.i === id);
+    if (active && zone !== active.zone) {
+      zone = active.zone;
+      $("city-title").textContent = data.districts.find(d => d.id === zone).label;
+      summary();
+      directory();
+    }
+    document.body.classList.add("panel-open");
     inspect();
+    $("inspector").scrollTop = 0;
     map();
     const b = data.bots.find((b) => b.i === id);
     if (!fromScene && want3d && window.__flyToBot) window.__flyToBot(id);
@@ -364,11 +316,9 @@
         );
         const b = data.bots.find((b) => b.name === name);
         if (b) selectBot(b.i);
-        if (
-          innerWidth > 700 &&
-          !matchMedia("(prefers-reduced-motion: reduce)").matches
-        )
-          void setView(true);
+        // The complete isometric city works immediately, including phones and
+        // devices without WebGL. Orbit 3D is an explicit enhancement.
+        applyView(false);
       }
     } catch (e) {
       showError(
@@ -392,11 +342,11 @@
     $("view-map").setAttribute("aria-pressed", String(!three));
     $("view-state").textContent = three
       ? "3D / ORBIT & ZOOM"
-      : "2D / INTERACTIVE";
+      : "ISOMETRIC / ALL BOTS";
     $("view-note").textContent = three
       ? "Drag to orbit · Scroll to zoom · Select a building."
-      : "Select a district or a building to inspect its bots.";
-    $("sidepanel").hidden = !three;
+      : innerWidth <= 700 ? "Swipe to explore · Tap a sector · Home to return" : "Select a sector · Select a building for its bot · Home to return";
+    $("sidepanel").hidden = true;
   }
   async function setView(three) {
     if (!three) {
@@ -426,6 +376,7 @@
         ),
       ]);
       if (want3d && selected !== null) window.__flyToBot?.(selected);
+      else if (want3d && zone) window.__selectDistrict?.(zone);
     } catch (e) {
       threeFailed = true;
       applyView(false);
@@ -435,6 +386,37 @@
       $("city-loading").hidden = true;
     }
   }
+  $("toggle-sectors").addEventListener("click", () => {
+    const open = document.body.classList.toggle("sectors-open");
+    $("toggle-sectors").setAttribute("aria-expanded", String(open));
+    if (open) document.body.classList.remove("panel-open");
+  });
+  function showData() {
+    const open = document.body.classList.toggle("show-data");
+    $("toggle-data").setAttribute("aria-expanded", String(open));
+    if (open) $("directory").scrollIntoView({ block: "start" });
+    else window.scrollTo({ top: 0 });
+  }
+  $("toggle-data").addEventListener("click", showData);
+  $("open-directory").addEventListener("click", (e) => {
+    e.preventDefault();
+    document.body.classList.add("panel-open");
+    if (data) { selected = null; sectorPanel(); }
+    $("city-search").focus();
+  });
+  $("city-search").addEventListener("input", () => { selected = null; sectorPanel(); });
+  $("selection").addEventListener("click", (e) => {
+    if (e.target.closest("[data-back-sector]")) {
+      selected = null;
+      $("city-search").value = "";
+      sectorPanel();
+      map();
+      history.replaceState(null, "", location.pathname);
+      return;
+    }
+    const b = e.target.closest("[data-bot]");
+    if (b) selectBot(+b.dataset.bot);
+  });
   $("refresh").addEventListener("click", refresh);
   $("districts").addEventListener("click", (e) => {
     const b = e.target.closest("[data-zone]");
@@ -447,15 +429,18 @@
   $("citymap").addEventListener("click", (e) => {
     const b = e.target.closest("[data-bot]"),
       z = e.target.closest("[data-zone]");
-    if (b) selectBot(+b.dataset.bot);
+    if (z && zone !== z.dataset.zone) selectZone(z.dataset.zone);
+    else if (b) selectBot(+b.dataset.bot);
     else if (z) selectZone(z.dataset.zone);
   });
   $("citymap").addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") {
       const z = e.target.closest("[data-zone]");
-      if (z) {
+      const b = e.target.closest("[data-bot]");
+      if (b || z) {
         e.preventDefault();
-        selectZone(z.dataset.zone);
+        if (b) selectBot(+b.dataset.bot);
+        else selectZone(z.dataset.zone);
       }
     }
   });
@@ -482,6 +467,7 @@
   });
   $("clear-selection").addEventListener("click", () => {
     selected = null;
+    document.body.classList.remove("panel-open");
     inspect();
     map();
     history.replaceState(null, "", location.pathname);
@@ -494,20 +480,20 @@
     inspect();
     window.__cityHome?.();
   });
+  function fullscreenLabel() {
+    $("fullscreen").setAttribute("aria-label", document.fullscreenElement || document.body.classList.contains("city-expanded") ? "Exit fullscreen" : "Enter fullscreen");
+  }
   $("fullscreen").addEventListener("click", async () => {
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await $("stage").parentElement.requestFullscreen();
-    } catch {
-      $("view-note").textContent = "Fullscreen is unavailable in this browser.";
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else if (document.body.classList.contains("city-expanded")) document.body.classList.remove("city-expanded");
+    else {
+      try { await document.querySelector(".observatory").requestFullscreen(); }
+      catch { document.body.classList.add("city-expanded"); }
     }
+    fullscreenLabel();
+    window.dispatchEvent(new Event("resize"));
   });
-  document.addEventListener("fullscreenchange", () => {
-    $("fullscreen").setAttribute(
-      "aria-label",
-      document.fullscreenElement ? "Exit fullscreen" : "Enter fullscreen",
-    );
-  });
+  document.addEventListener("fullscreenchange", fullscreenLabel);
   window.addEventListener("city-zone", (e) => {
     if (zone !== e.detail) selectZone(e.detail, true);
   });
@@ -520,11 +506,14 @@
       !["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)
     ) {
       e.preventDefault();
-      $("search").focus();
-      $("directory").scrollIntoView({ block: "start" });
+      document.body.classList.add("panel-open");
+      $("city-search").focus();
     }
     if (e.key === "Escape") {
       $("sidepanel").classList.remove("open");
+      document.body.classList.remove("panel-open", "sectors-open", "city-expanded");
+      fullscreenLabel();
+      $("toggle-sectors").setAttribute("aria-expanded", "false");
     }
   });
   document.addEventListener("visibilitychange", () => {

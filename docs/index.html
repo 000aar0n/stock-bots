@@ -8,9 +8,10 @@
       name="description"
       content="Explore Bot City strategies, districts and source-verified shadow performance."
     />
-    <title>Bot City — Strategy Observatory</title>
+    <title>Bot City — All your bots, one city</title>
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="monitor.css" />
+    <link rel="stylesheet" href="city-shell.css" />
     <script type="importmap">
       {
         "imports": {
@@ -20,6 +21,7 @@
       }
     </script>
     <script defer src="monitor-core.js"></script>
+    <script defer src="city-map.js"></script>
     <script defer src="monitor.js"></script>
   </head>
   <body>
@@ -28,10 +30,10 @@
       <a class="brand" href="#"
         ><svg viewBox="0 0 32 32" aria-hidden="true">
           <path d="M3 27V17h6V9h6V4h6v11h7v12M9 27v-6m6 6V15m6 12v-7" /></svg
-        ><span>BOT CITY<small>STRATEGY OBSERVATORY</small></span></a
+        ><span>BOT CITY<small>ALL YOUR BOTS. ONE CITY.</small></span></a
       ><span class="header-label">HTMW SIMULATION / SHADOW RESEARCH</span>
       <nav aria-label="Main">
-        <a href="#directory">Directory ↗</a
+        <button id="toggle-sectors" aria-expanded="false">Sectors</button><button id="toggle-data" aria-expanded="false">Stats &amp; directory</button><a href="#directory" id="open-directory">Search ↗</a
         ><a href="https://github.com/000aar0n/stock-bots">Source ↗</a>
       </nav>
     </header>
@@ -49,7 +51,7 @@
       <section class="observatory" aria-label="Bot city explorer">
         <aside class="district-sidebar">
           <div class="section-eyebrow">
-            01 / DISTRICTS <span id="district-count">—</span>
+            SECTORS <span id="district-count">—</span>
           </div>
           <button
             id="all-districts"
@@ -70,12 +72,12 @@
         <div class="city-column">
           <div class="city-toolbar">
             <div>
-              <span class="section-eyebrow">CITY EXPLORER</span>
+              <span class="section-eyebrow">CLICK A SECTOR TO EXPLORE</span>
               <h1 id="city-title">All districts</h1>
             </div>
             <div class="view-switch" role="group" aria-label="City view">
-              <button id="view-3d" aria-pressed="false">3D city</button
-              ><button id="view-map" aria-pressed="true">City map</button
+              <button id="view-3d" aria-pressed="false">Orbit 3D</button
+              ><button id="view-map" aria-pressed="true">City</button
               ><button id="reset-view" aria-label="Reset city view">⌂</button
               ><button id="fullscreen" aria-label="Enter fullscreen">⛶</button>
             </div>
@@ -113,16 +115,16 @@
         </div>
         <aside class="inspector" id="inspector">
           <div class="section-eyebrow">
-            02 / INSPECTOR
+            SECTOR / BOT
             <button
               id="clear-selection"
               class="quiet"
-              aria-label="Clear selected bot"
+              aria-label="Close bot panel"
             >
               ×
             </button>
           </div>
-          <div id="selection">
+          <label class="city-search-label" for="city-search">Find a bot or ticker</label><input id="city-search" type="search" placeholder="Name, ticker, strategy…" autocomplete="off" /><div id="selection">
             <div class="empty-selection">
               <span class="crosshair" aria-hidden="true">⌖</span>
               <h2>A city of strategies.</h2>

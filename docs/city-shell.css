@@ -1,0 +1,102 @@
+/* City first: the world fills the viewport; tools are opened when needed. */
+:root { --bg:#070e18; --panel:#0d1927; --line:#25374b; --mint:#84dfd2; }
+body { overflow-x:hidden; }
+.topbar { height:58px; padding:0 22px; background:#0b1521; gap:20px; }
+.brand { font-size:17px; }
+.brand small { font-size:8px; letter-spacing:1.2px; }
+.header-label { display:none; }
+.topbar nav { margin-left:auto; gap:12px; align-items:center; }
+.topbar nav button { padding:8px 12px; font-size:11px; }
+.topbar nav a { font-size:11px; }
+.feedbar { height:34px; padding:0 22px; background:#0a131e; font-size:10px; }
+#snapshot-time { display:none; }
+.notice { padding:6px 22px; font-size:10px; }
+.observatory { display:block; position:relative; border:0; }
+.city-column { position:relative; background:#070e18; height:calc(100dvh - 92px); min-height:540px; }
+.city-toolbar { position:absolute; z-index:5; top:20px; left:24px; right:24px; padding:0; pointer-events:none; }
+.city-toolbar > * { pointer-events:auto; }
+.city-toolbar h1 { font-size:28px; letter-spacing:-1px; margin-top:6px; text-shadow:0 2px 10px #000; }
+.city-toolbar .section-eyebrow { font-size:9px; }
+.view-switch { padding:5px; background:#0b1725ed; border:1px solid var(--line); border-radius:7px; }
+.view-switch button { border:0; padding:9px 11px; }
+#stage { height:100%; min-height:0; }
+#citymap { padding:68px 16px 65px; align-items:center; }
+#citymap svg { overflow:hidden; }
+.iso-sector, .iso-sign, .iso-building { cursor:pointer; outline:none; }
+.iso-sector:hover .iso-ground, .iso-sector:focus .iso-ground { fill-opacity:.3; stroke-width:1; }
+.iso-building:hover .iso-roof, .iso-building:focus .iso-roof, .iso-building.selected .iso-roof { fill:#fff3b0; stroke:#fff; fill-opacity:1; stroke-width:.9; }
+.iso-sign:hover rect, .iso-sign:focus rect { fill:#263c52; stroke-width:.8; }
+.iso-sign text { font:600 3.4px Arial,sans-serif; pointer-events:none; }
+.sector-sign { font:600 3.2px Arial,sans-serif; pointer-events:none; }
+.sector-pop { font:2.5px monospace; fill:#768da4; pointer-events:none; }
+.map-caption { bottom:50px; left:24px; right:24px; font-size:9px; }
+.city-summary { position:absolute; bottom:0; left:0; right:0; height:37px; padding:11px 24px; background:#0a141fe8; gap:22px; font-size:10px; }
+.district-sidebar { display:none; position:absolute; top:92px; left:20px; z-index:7; width:240px; max-height:calc(100dvh - 230px); overflow:auto; padding:18px 12px; background:#0b1725f7; border:1px solid var(--line); border-radius:8px; box-shadow:0 15px 50px #0008; }
+.sectors-open .district-sidebar { display:block; }
+#districts { display:block; overflow:visible; }
+.district { display:flex; width:100%; margin-bottom:3px; font-size:11px; padding:10px; }
+.district-sidebar > .section-eyebrow { display:flex; }
+.sidebar-foot { display:none; }
+.inspector, .inspector:has(.empty-selection) { display:none; position:absolute; right:20px; top:92px; width:320px; max-height:calc(100dvh - 230px); overflow:auto; z-index:8; border:1px solid var(--line); background:#0b1725fa; padding:20px; border-radius:8px; box-shadow:0 15px 50px #0008; }
+.panel-open .inspector { display:block; }
+#selection:not(:has(.empty-selection)) { display:block; }
+.inspector h2 { font-size:22px; margin:20px 0 8px; }
+.inspector p { font-size:11px; line-height:1.6; }
+#clear-selection { font-size:22px; }
+.city-search-label { display:block; font-size:10px; color:var(--muted); margin:15px 0 7px; }
+#city-search { width:100%; border:1px solid #334a62; background:#111f30; color:#edf4ff; padding:11px; border-radius:4px; font-size:12px; }
+.sector-count { color:var(--mint) !important; font:10px monospace !important; }
+.sector-bots { margin-top:12px; }
+.sector-bot { display:block; width:100%; text-align:left; padding:12px 4px; border:0; border-bottom:1px solid var(--line); border-radius:0; }
+.sector-bot span { display:block; font-size:12px; color:#eaf2fb; }
+.sector-bot small { display:block; font-size:10px; color:#8fa4bb; margin-top:5px; }
+.selected-metrics { margin:18px 0; }
+#sidepanel { display:none !important; }
+body:not(.show-data) .records, body:not(.show-data) .basis, body:not(.show-data) .directory, body:not(.show-data) .method, body:not(.show-data) footer { display:none; }
+body.show-data .records { border-top:1px solid var(--line); }
+.city-column:fullscreen { height:100dvh; }
+.city-column:fullscreen .city-toolbar { top:20px; }
+@media (max-width:700px) {
+ .topbar { padding:0 12px; gap:5px; height:56px; }
+ .brand { font-size:14px; gap:7px; letter-spacing:1px; }
+ .brand svg { width:24px; }
+ .brand small { font-size:6px; letter-spacing:.6px; }
+ .topbar nav { gap:4px; }
+ .topbar nav button { padding:8px 6px; font-size:10px; }
+ .topbar nav a { font-size:10px; }
+ .topbar nav a:last-child { display:none; }
+ .feedbar { padding:0 12px; height:36px; }
+ .feedbar > div { flex-wrap:nowrap; }
+ .feedbar strong { font-size:9px; max-width:250px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+ .city-column { height:calc(100dvh - 92px); min-height:490px; }
+ .city-toolbar { top:18px; left:14px; right:14px; align-items:flex-start; flex-wrap:wrap; gap:8px; }
+ .city-toolbar h1 { font-size:22px; }
+ .city-toolbar .section-eyebrow { font-size:8px; }
+ .view-switch { gap:2px; }
+ .view-switch button { font-size:9px; padding:7px; }
+ #citymap { padding:92px 0 88px; }
+ .city-summary { gap:12px; padding:12px 14px; font-size:9px; height:40px; flex-wrap:nowrap; }
+ .city-summary span:last-child { display:none; }
+ .city-summary span:nth-child(3) { display:none; }
+ .map-caption { bottom:53px; left:14px; font-size:8px; }
+ .map-caption > span:last-child { display:none; }
+ .inspector, .district-sidebar { top:100px; right:12px; left:12px; width:auto; max-height:calc(100dvh - 260px); }
+ .inspector { top:100px; }
+ .district-sidebar { max-width:300px; }
+ .notice { padding:6px 12px; }
+}
+
+.back-sector { border:0; padding:12px 0 0; color:var(--mint); font-size:11px; }
+.observatory:fullscreen { background:var(--bg); height:100dvh; }
+.observatory:fullscreen .city-column { height:100dvh; }
+/* Keep the focused sector clear of the details drawer on wide displays. */
+@media (min-width:950px) { .panel-open #citymap { padding-right:340px; } }
+
+.city-expanded { overflow:hidden; }
+.city-expanded .observatory { position:fixed; inset:0; z-index:30; background:var(--bg); }
+.city-expanded .city-column { height:100dvh; }
+@media (max-width:700px) {
+ #citymap { overflow-x:auto; overflow-y:hidden; touch-action:pan-x; }
+ #citymap svg { min-width:720px; flex-shrink:0; }
+ #citymap.focused svg { min-width:100%; }
+}
