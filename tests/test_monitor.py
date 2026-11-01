@@ -45,6 +45,9 @@ def test_completed_shadow_only_not_arena_or_open_marks(city):
     assert result['summary']['pnl']==pytest.approx(969.5)
     assert result['bots'][0]['arenaPnl']>result['summary']['pnl']
     assert not result['bots'][0]['eligible']
+    assert result['bots'][0]['events']==3
+    assert result['bots'][0]['wins']==1
+    assert result['bots'][0]['lastActivityAt']=='2026-10-30T17:00:00+00:00'
 
 
 def test_heartbeat_and_sensitive_data_never_refreshed_or_exported(city):
