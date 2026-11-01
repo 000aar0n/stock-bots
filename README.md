@@ -495,8 +495,8 @@ trading scale up case.
 
 ## ADDENDUM 2 (Sat Oct 31, 2026): wide fence, rivals, captains, one JUDGE on the record
 
-### The fence is wide: 148 names (see UNIVERSE.md)
-Standing coverage grew from 55 to 148 liquid names across every
+### The fence is wide: 150 names (see UNIVERSE.md)
+Standing coverage grew from 55 to 150 liquid names across every
 sector in the widened universe. Penny fence: standing coverage
 requires a real stock, price generally above $5 and real daily
 dollar volume. UMAC, ONDS, AMPX, NUWE and BRAI are explicitly
