@@ -1,11 +1,15 @@
 # Muse operating contract
 
-This file supersedes the original build-day run instructions in README.md.
+This file is an operating reference. It does not supersede README.md, Aaron's
+direct rules, or trading-style.md; where anything here conflicts with those,
+Aaron's direct rules and trading-style.md win.
 The 802 registry entries, roles, handcrafted modules, paper competitions and
 browser-session execution model remain. Quantity of bots is not evidence of edge.
 
-## Unattended coordinator
+## Unattended coordinator (optional, not running)
 
+OPTIONAL: this loop is not running and must not be started except on Aaron's
+direct order.
 Install Python 3.12+ and `pip install -r requirements.txt` in a virtual environment.
 Muse/COURIER must write a fresh, verified HTMW account snapshot to a stable path
 using a temporary file and atomic rename. Run:
@@ -89,14 +93,19 @@ there. Never put credentials in messages. ChatGPT replies there directly.
   bot/ticker/source; duplicate entries and flat exits are ignored.
 - Ranking uses completed live PAPER round trips, net of modeled $10/order and
   5bps/side friction. Unrealized marks are shown separately, never rank evidence.
-- The PROVEN label means research eligibility only: 20 completed trades across
-  five sessions. It is not proof of profitability or statistical significance.
+- The 20 completed trades across five sessions threshold is research
+  eligibility only. It is not proof of profitability or statistical
+  significance, and it is not the PROVEN label. PROVEN means 5+ ranked live
+  calls with a positive record, as defined in trading-style.md and README.md.
 - Every arena run has its own log under `output/arena-runs/<UUID>/`. Historical
   bots see only daily candles through the replay date, signal at a close and fill
   at the following session open. Intraday fetches fail closed; present-day tape
   can never substitute. No forced final liquidation is invented.
-- Arena results have survivorship/calendar limitations and cannot breed the live
-  population. Original arena records remain preserved, but cannot enter live state.
+- Arena results have survivorship/calendar limitations. When live calls are
+  below the breeding threshold, DARWIN may breed from arena standings;
+  offspring are stamped ARENA_BRED and carry no live rank until they prove
+  themselves live. Original arena records remain preserved, but cannot enter
+  live state as live records.
 - DARWIN consumes each closed-trade evidence set once. It only breeds supported
   positive-record strategies and benches eligible losers. Offspring apply actual
   parameters/watchlist filters through `bot_runtime.py`; ineffective mutations
@@ -106,8 +115,12 @@ there. Never put credentials in messages. ChatGPT replies there directly.
   nonpositive scores are not budgeted. Any budget disagreement blocks allocation.
 - JUDGE logs decisions once per source bar. Each decision locks to a same-session-close counterfactual once that actual
   close is available. Missing outcomes stay unscored; indefinite re-marking to
-  today's price is removed. These are paper evaluation outcomes, not HTMW P/L. Autonomous
-  breeding does not delete JUDGE. Hard risk checks always remain mandatory.
+  today's price is removed. These are paper evaluation outcomes, not HTMW P/L. JUDGE is a rules engine
+  scored on the judge scorecard. At 20+ scored decisions with a negative
+  aggregate record, JUDGE is deleted (judge_scorecard.py --delete; the
+  tombstone stops re-minting), and a successor is hand coded from the proven
+  bots, their winning logged causes, and the old judge's errors. Hard risk
+  checks always remain mandatory.
 
 ## Validation and runtime
 
@@ -118,10 +131,9 @@ python -m compileall -q .
 ```
 
 Tests prohibit network access and use synthetic data only. The CI workflow runs
-these checks on pushes and pull requests. To keep the loop running through host
-restarts, Muse should use the existing persistent host's service manager with
+these checks on pushes and pull requests. The loop is currently NOT running.
+If, and only if, Aaron directly orders it started, it may be kept running
+through host restarts with the existing persistent host's service manager with
 restart-on-failure, the repository as working directory, and the command above.
-A GitHub push alone does not start a process on Muse's host. Muse owns that host
-and should verify `city-status.json` updates and the process is supervised, then
-post confirmation in Desk Messages. No paid host or extra secret is required by
-this patch.
+A GitHub push alone does not start a process on Muse's host. No paid host or
+extra secret is required by this patch.
