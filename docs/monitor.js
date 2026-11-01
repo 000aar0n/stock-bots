@@ -202,6 +202,14 @@
       b.calls +
       "</b></div><div>Trading sessions <b>" +
       b.sessions +
+      "</b></div><div>Recorded shadow events <b>" +
+      b.events +
+      "</b></div><div>Winning closed trades <b>" +
+      b.wins + " / " + b.calls +
+      "</b></div><div>Win rate <b>" +
+      (b.winRate === null ? "—" : b.winRate.toFixed(1) + "%") +
+      "</b></div><div>Last shadow activity <b>" +
+      esc(time(b.lastActivityAt)) +
       "</b></div><div>Evidence <b>" +
       (!b.ranked
         ? "Unranked role"
