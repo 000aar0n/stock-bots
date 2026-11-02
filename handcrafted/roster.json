@@ -1171,5 +1171,149 @@
   "timeframe": "daily",
   "ranked": true,
   "hold": "intraday"
+ },
+ {
+  "name": "UNDERCUT",
+  "file": "undercut.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "breakdown continuation short: close loses the prior 20 session low on a red day, rel volume over 1.2, already under the 50 day average",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "DEADCAT",
+  "file": "deadcat.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "dead cat bounce fade: down 12% or more into a recent low, bounce of 3% or more into a falling 20 day average, short the bounce",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "BLOWOFF",
+  "file": "blowoff.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "RSI blowoff fade: 10 session run of 12% or more with RSI at 74 or higher in the last 3 sessions, short the first close under the prior low",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "RECLAIMFAIL",
+  "file": "reclaimfail.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "failed reclaim short: poked above the 20 day average within 3 sessions and closed back under it while the average is flat to falling",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "LAGGARD",
+  "file": "laggard.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "sector relative weakness short: trails its own group median 5 session move by 6 points or more, under the 50 day average, RSI 35 or higher",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "AFTERSHOCK",
+  "file": "aftershock.py",
+  "watchlist": "CALENDAR",
+  "strategy": "post earnings drift short: gapped down 4% or more on the print and still under the print day close 1 to 3 sessions later",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "KNIFEBACK",
+  "file": "knifeback.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "knife catcher in reverse: short the first weak bounce (3.5% or less, bottom half close) after a falling knife day of 6% or more on 1.5x volume",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "TOPSIDE",
+  "file": "topside.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "resistance rejection short: retest of the 60 session ceiling within 1.5%, red close under the prior low on rel volume over 1.1",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "CROSSDOWN",
+  "file": "crossdown.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "fresh 50 day breakdown short: above the 50 day average 3 sessions ago, closed under it now, 20 day already beneath the 50",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "AIRPOCKET",
+  "file": "airpocket.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "gap through support short: gap down 3% or more through a shelf within 2.5% of the 20 session low, bottom third close on 1.3x volume",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "HEAVYHAND",
+  "file": "heavyhand.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "distribution short: 3 or more heavy volume down days in the last 5, close under the 20 day average",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "PARABOLIC",
+  "file": "parabolic.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "vertical run exhaustion short: up 25% or more in 10 sessions, short the first close under the prior session low, wide 5% stop for squeeze risk",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "LOWERTIDE",
+  "file": "lowertide.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "lower highs sequence short: three consecutive 10 session windows with strictly lower highs, close under the 20 day average",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "ANCHORLESS",
+  "file": "anchorless.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "200 day regime break short: above the 200 day average 20 sessions ago, closed under it now on 1.1x volume, RSI 55 or lower",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "SECONDLEG",
+  "file": "secondleg.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "second leg down short: 10% or greater drop into a recent low, relief bounce of 3% or more stalls, short the first red close under the bounce lows",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
+ },
+ {
+  "name": "DUSK",
+  "file": "dusk.py",
+  "watchlist": "UNIVERSE",
+  "strategy": "closing weakness short: three straight closes in the bottom quartile of the day range, under the 20 day average",
+  "timeframe": "daily",
+  "ranked": true,
+  "hold": "intraday"
  }
 ]

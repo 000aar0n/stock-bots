@@ -179,7 +179,7 @@ python3 specialists.py              # all nine
 python3 specialists.py --only CIRCUIT
 ```
 
-## The factory (bot_factory.py): 202 factory bots, 302 registered in total with the handcrafted hundred
+## The factory (bot_factory.py): 826 registered in total, 116 of them handcrafted
 
 `python3 bot_factory.py` generates the registry
 (`output/bots.json`: name, kind, watchlist, strategy, timeframe,
@@ -218,8 +218,14 @@ below.
 
 ## Handcrafted bots (handcrafted/, Phase 7)
 
-One hundred bots written one at a time, each its own file with
-hand tuned logic, not factory parameter clones. The full roster
+One hundred sixteen bots written one at a time, each its own file with
+hand tuned logic, not factory parameter clones. The last sixteen
+(bots 101 to 116 in the roster) are the short squad added Mon
+Nov 2, 2026: UNDERCUT, DEADCAT, BLOWOFF, RECLAIMFAIL, LAGGARD,
+AFTERSHOCK, KNIFEBACK, TOPSIDE, CROSSDOWN, AIRPOCKET, HEAVYHAND,
+PARABOLIC, LOWERTIDE, ANCHORLESS, SECONDLEG and DUSK, each with a
+distinct short logic, all DAY book by default, all gated by
+JUDGE, BOUNCER and ODDS like every other call. The full roster
 (names, files, universes, hold styles, one line logic, and a
 design note justifying each bot's thresholds against its names'
 actual behavior) lives in `handcrafted/ROSTER.md`; the machine

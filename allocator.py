@@ -336,7 +336,7 @@ def main(argv=None):
     scan = rules.load_scan()
     decisions = rules.evaluate(snapshot, scan,
                                day_change_pct=args.day_change_pct)
-    earnings_rows = earnings_bot.evaluate()
+    earnings_rows = earnings_bot.evaluate(snapshot=snapshot)
     odds_rows = odds.build_odds(scan)
     extra = None
     if args.sample_candidates:

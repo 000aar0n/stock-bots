@@ -217,12 +217,12 @@ def test_whole_roster_runs_with_shared_synthetic_data(tmp_path,monkeypatch):
     monkeypatch.setattr(scanner,'fetch_daily',lambda _:copy.deepcopy(daily))
     monkeypatch.setattr(scanner,'fetch_intraday_candles',lambda _:copy.deepcopy(intra))
     registry=bot_factory.build_registry()
-    assert registry['count']==810
+    assert registry['count']==826
     with board.paper_context(path=str(tmp_path/'calls.jsonl'),output_dir=str(tmp_path)):
         digest=bot_factory.run_digest(registry,log_calls=False)
     failures=[line for line in digest.splitlines() if 'STOOD DOWN' in line]
     assert failures==[], failures
-    assert digest.count(': module executed')==100
+    assert digest.count(': module executed')==116
 
 
 def test_unchanged_evidence_does_not_create_new_seasons(tmp_path,monkeypatch):
@@ -297,6 +297,87 @@ def test_coordinator_complete_proposal_cycle(tmp_path,monkeypatch):
     assert result['actions'][0]['symbol']=='XYZ'
     assert result['reported_htmw']['amount']==100000.
     assert json.loads((tmp_path/'city-status.json').read_text())['at']==moment.isoformat()
+
+
+def test_protect_lift_unblocks_but_state_stays_on(tmp_path):
+    import risk_warden, rules
+    snapshot={'portfolio_value':103131.95,'start_value':100000,'peak_gain':17428,'buying_power':191259.98,'positions':{}}
+    scan={'symbols':{'XYZ':{'last_close':100,'chg_5d_pct':1.0,'ta':{'turning_up':True,'falling_knife':False}}},'pairs':[]}
+    base=rules.evaluate(snapshot,scan,day_change_pct=5.08)
+    assert base['protect_mode'] is True and base['protect_lifted'] is False
+    cand=base['buy_candidates'][0]
+    assert cand['blocked'] is True
+    assert any('PROTECT mode' in r for r in cand['blocked_reasons'])
+    lifted=rules.evaluate(snapshot,scan,day_change_pct=5.08,protect_lift=True)
+    assert lifted['protect_mode'] is True and lifted['protect_lifted'] is True
+    cand=lifted['buy_candidates'][0]
+    assert cand['blocked'] is False
+    assert 'PROTECT lifted by documented session order' in cand['blocked_reasons']
+    # The snapshot field path (no flag) behaves the same, and the
+    # lift never self-activates: a plain snapshot still blocks.
+    snap2=dict(snapshot,protect_lifted=True)
+    via_snap=rules.evaluate(snap2,scan,day_change_pct=5.08)
+    assert via_snap['buy_candidates'][0]['blocked'] is False
+    # BOUNCER honors the same state and the cross check stays clean.
+    w=risk_warden.check(snap2,scan,day_change_pct=5.08)
+    assert w['protect_mode'] is True and w['protect_lifted'] is True
+    p=tmp_path/'rules.json';p.write_text(json.dumps(via_snap))
+    assert risk_warden.compare(w,str(p))==[]
+
+
+def test_arb_verified_eligibility_field():
+    import arb_monitor, rules
+    from datetime import date
+    # Barred through Mon Nov 2 (earnings bar), clear Tue Nov 3.
+    assert arb_monitor.verified_eligibility('SOFI/HOOD',25.28,date(2026,11,2)) is False
+    assert arb_monitor.verified_eligibility('SOFI/HOOD',25.28,date(2026,11,3)) is True
+    assert arb_monitor.verified_eligibility('XOM/CVX',12.0,date(2026,11,2)) is True
+    assert arb_monitor.verified_eligibility('XOM/CVX',5.0,date(2026,11,2)) is False
+    assert arb_monitor.verified_eligibility('XOM/CVX',None,date(2026,11,2)) is False
+    # JUDGE's arb candidates carry the field the allocator funds on,
+    # consistent with SCALES' own computation for the same day.
+    scan={'symbols':{},'pairs':[{'pair':'SOFI/HOOD','gap_points':25.28,'flagged':True,'long_leg':'HOOD','short_leg':'SOFI'}]}
+    snapshot={'portfolio_value':100000,'start_value':100000,'peak_gain':0,'buying_power':20000,'positions':{}}
+    cand=rules.evaluate(snapshot,scan,day_change_pct=0.5)['arb_candidates'][0]
+    assert cand['verified_eligibility']==arb_monitor.verified_eligibility('SOFI/HOOD',25.28)
+
+
+def test_siren_reads_positions_from_snapshot():
+    import earnings_bot
+    from datetime import date
+    rows=earnings_bot.evaluate(date(2026,11,2),snapshot={'positions':{'GPN':{'qty':152,'entry':98.23}}})
+    by={r['ticker']:r for r in rows}
+    assert by['GPN']['held_qty']==152 and by['GPN']['entry']==98.23
+    assert by['GPN']['exposure']==pytest.approx(round(152*by['GPN']['price_used'],2))
+    assert by['PLTR']['held_qty']==0
+    # No snapshot: the calendar fixture remains the fallback.
+    by2={r['ticker']:r for r in earnings_bot.evaluate(date(2026,11,2))}
+    assert by2['GPN']['held_qty']==100 and by2['GPN']['entry']==95.57
+
+
+def test_factory_consumes_snapshot(tmp_path,monkeypatch):
+    monkeypatch.setattr(bot_factory,'REGISTRY_PATH',str(tmp_path/'bots.json'))
+    monkeypatch.setattr(bot_factory,'THERMO_PATH',str(tmp_path/'thermos.json'))
+    snap=tmp_path/'snapshot.json'
+    snap.write_text(json.dumps({'portfolio_value':103131.95,'positions':{'GPN':{'qty':152,'entry':98.23}}}))
+    assert bot_factory.main(['--snapshot',str(snap)])==0
+    bad=tmp_path/'bad.json';bad.write_text(json.dumps({'positions':{}}))
+    with pytest.raises(SystemExit): bot_factory.main(['--snapshot',str(bad)])
+
+
+def test_board_scores_short_round_trips():
+    import leaderboard
+    # THE BOARD must score a short round trip with flipped sign:
+    # cover below the entry is a win, cover above it is a loss,
+    # net of the same commission and slippage longs pay.
+    calls=[{'bot':'SHORTY','ticker':'XYZ','side':'short','entry_price':100.0,'ts':'2026-11-02T14:00:00+00:00','source':'live','id':'s1'},
+           {'bot':'SHORTY','ticker':'XYZ','side':'exit','entry_price':90.0,'ts':'2026-11-02T15:00:00+00:00','source':'live','id':'s2'},
+           {'bot':'SHORTY','ticker':'ABC','side':'short','entry_price':50.0,'ts':'2026-11-02T14:00:00+00:00','source':'live','id':'s3'},
+           {'bot':'SHORTY','ticker':'ABC','side':'exit','entry_price':55.0,'ts':'2026-11-02T15:30:00+00:00','source':'live','id':'s4'}]
+    s=leaderboard.compute_standings(calls,price_fn=lambda t: None)['SHORTY']
+    assert s['calls']==2 and s['wins']==1
+    by={row['ticker']:row['pnl'] for row in s['scored']}
+    assert by['XYZ']>900 and by['ABC']<-900
 
 
 def test_judge_outcomes_lock_once_at_known_close(tmp_path,monkeypatch):

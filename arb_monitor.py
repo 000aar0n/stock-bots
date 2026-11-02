@@ -65,6 +65,24 @@ def pair_eligibility(pair_name, gap5, today):
     return "gap under the 10 point threshold"
 
 
+def verified_eligibility(pair_name, gap5, today=None):
+    """Boolean the allocator funds on: True exactly when the pair is
+    stretched at or over the entry threshold AND is not inside a
+    disqualifier window (earnings or guidance shock bars, the
+    encoded form of the style's news disqualification). A pair in a
+    known bar window is never verified, and an under-threshold gap
+    is never verified. The residual manual news check stays a
+    session duty printed in the eligibility string and the
+    candidate caveat; it does not silently flip this field."""
+    today = today or date.today()
+    if gap5 is None or abs(gap5) < STRETCH:
+        return False
+    dq = DISQUALIFIERS.get(pair_name)
+    if dq and today.isoformat() <= dq["barred_through"]:
+        return False
+    return True
+
+
 def evaluate(today=None):
     today = today or date.today()
     rows = []
@@ -86,11 +104,14 @@ def evaluate(today=None):
                 "long_leg": (a if (gap5 or 0) < 0 else b),
                 "short_leg": (b if (gap5 or 0) < 0 else a),
                 "eligibility": pair_eligibility(f"{a}/{b}", gap5, today),
+                "verified_eligibility": verified_eligibility(
+                    f"{a}/{b}", gap5, today),
                 "last_a": cache[a][-1], "last_b": cache[b][-1],
             })
         except Exception as e:  # noqa: BLE001
             row.update({"gap_5d_points": None, "gap_20d_points": None,
-                        "stretched": False, "eligibility": f"data error: {e}"})
+                        "stretched": False, "verified_eligibility": False,
+                        "eligibility": f"data error: {e}"})
         rows.append(row)
     rows.sort(key=lambda r: -(abs(r["gap_5d_points"])
                               if r["gap_5d_points"] is not None else 0))

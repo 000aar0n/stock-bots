@@ -22,7 +22,14 @@ Implements the risk rules from the trading style doc
 
 The engine READS and RECOMMENDS. It never places orders.
 
-Run: python3 rules.py [--day-change-pct -9.3]
+PROTECT lift: a session carrying Aaron's documented lift (his
+direct order, or the style's green day reset) passes --protect-lift
+or puts "protect_lifted": true in the snapshot. PROTECT state is
+still computed and reported; it just stops blocking buy candidates,
+and each candidate notes the lift. With neither input, behavior is
+unchanged and PROTECT blocks.
+
+Run: python3 rules.py [--day-change-pct -9.3] [--protect-lift]
 Uses output/scan-latest.json for prices (run scanner.py first; if the
 file is missing it runs a fresh scan in-process).
 """
@@ -33,6 +40,7 @@ import argparse
 import json
 import os
 import sys
+from datetime import date
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCAN_JSON = os.path.join(HERE, "output", "scan-latest.json")
@@ -67,7 +75,7 @@ def load_scan():
     return scanner.run_scan()
 
 
-def evaluate(snapshot, scan, day_change_pct=None):
+def evaluate(snapshot, scan, day_change_pct=None, protect_lift=False):
     syms = scan.get("symbols", {})
     value = snapshot["portfolio_value"]
     decisions = {
@@ -86,11 +94,30 @@ def evaluate(snapshot, scan, day_change_pct=None):
         giveback = 0.0
     decisions["giveback_pct_of_peak"] = round(giveback * 100, 1)
     decisions["protect_mode"] = giveback >= PROTECT_GIVEBACK
-    decisions["protect_note"] = (
-        "PROTECT: no new momentum entries until a green day; stat arb "
-        "entries may continue; ordered rebalances still complete."
-        if decisions["protect_mode"] else
-        "Profit guard not tripped.")
+    # PROTECT lift plumbing: a session may carry Aaron's documented
+    # lift (his direct order, or the style's own green day reset) into
+    # the engine either as the --protect-lift flag or as the snapshot
+    # field "protect_lifted": true. The lift NEVER self-activates:
+    # with neither input, PROTECT blocks exactly as before. When it is
+    # in effect the PROTECT state is still computed and reported
+    # (protect_mode stays true); it just stops blocking buy
+    # candidates, and each candidate notes the lift instead of the
+    # block. Every other gate (brake, floor, envelope, caps) applies
+    # unchanged.
+    protect_lifted = bool(protect_lift or snapshot.get("protect_lifted"))
+    decisions["protect_lifted"] = protect_lifted
+    if decisions["protect_mode"] and protect_lifted:
+        decisions["protect_note"] = (
+            "PROTECT is ON by the giveback math but LIFTED for this "
+            "run by documented session order: buy candidates are not "
+            "blocked for this reason. Stat arb entries may continue; "
+            "ordered rebalances still complete; all other gates apply.")
+    else:
+        decisions["protect_note"] = (
+            "PROTECT: no new momentum entries until a green day; stat arb "
+            "entries may continue; ordered rebalances still complete."
+            if decisions["protect_mode"] else
+            "Profit guard not tripped.")
 
     # --- daily brake (rule 3)
     if day_change_pct is None:
@@ -206,11 +233,18 @@ def evaluate(snapshot, scan, day_change_pct=None):
             f"spread enforced by the 25% single name cap.")
 
     # --- arb candidates (scanner gaps; news check NOT automated)
+    import arb_monitor  # local: SCALES owns pair eligibility and bars
     arb = []
     for p in scan.get("pairs", []):
         if p.get("flagged"):
             arb_blocked = brake_state == "full"
             arb.append({"pair": p["pair"], "gap_points": p["gap_points"],
+                        "verified_eligibility":
+                            arb_monitor.verified_eligibility(
+                                p["pair"], p["gap_points"]),
+                        "eligibility": arb_monitor.pair_eligibility(
+                            p["pair"], p["gap_points"],
+                            date.today()),
                         "long_leg": p["long_leg"], "short_leg": p["short_leg"],
                         "exit_trigger": "exit the pair when half the gap "
                                         "has closed, after 3 sessions, or "
@@ -247,7 +281,7 @@ def evaluate(snapshot, scan, day_change_pct=None):
             blocked_reasons.append("buying power reserve unavailable or below floor")
         if gross >= TOTAL_ENVELOPE:
             blocked_reasons.append("gross envelope full")
-        if decisions["protect_mode"]:
+        if decisions["protect_mode"] and not protect_lifted:
             blocked_reasons.append(
                 "PROTECT mode: no new momentum entries until a green day")
         if brake_state == "full":
@@ -256,6 +290,13 @@ def evaluate(snapshot, scan, day_change_pct=None):
         elif brake_state == "brake":
             blocked_reasons.append(
                 "daily brake: no new positions, rotations into strength only")
+        is_blocked = bool(blocked_reasons)
+        if decisions["protect_mode"] and protect_lifted:
+            # The lift replaces the PROTECT block: the candidate is
+            # blocked only if some OTHER reason above fired, and the
+            # reason list notes the lift instead of the PROTECT block.
+            blocked_reasons = blocked_reasons + [
+                "PROTECT lifted by documented session order"]
         is_latency = sym in latency_syms
         cands.append({
             "symbol": sym, "last_close": last,
@@ -267,7 +308,8 @@ def evaluate(snapshot, scan, day_change_pct=None):
                 "red at two straight closes"),
             "brake_state": brake_state,
             "protect_mode": decisions["protect_mode"],
-            "blocked": bool(blocked_reasons),
+            "protect_lifted": protect_lifted,
+            "blocked": is_blocked,
             "blocked_reasons": blocked_reasons,
             "latency_candidate": is_latency,
             "verification": (
@@ -324,7 +366,10 @@ def build_report(d):
                  f"gain ${d['current_gain']:+,.2f} vs ${d['start_value']:,.0f} start  "
                  f"(peak gain ${d['peak_gain']:,.0f}, giveback "
                  f"{d['giveback_pct_of_peak']:.1f}% of peak)")
-    lines.append(f"PROTECT mode: {'ON' if d['protect_mode'] else 'off'} - {d['protect_note']}")
+    protect_label = ('ON' if d['protect_mode'] else 'off')
+    if d['protect_mode'] and d.get("protect_lifted"):
+        protect_label += " (LIFTED by documented session order)"
+    lines.append(f"PROTECT mode: {protect_label} - {d['protect_note']}")
     lines.append(f"Daily brake: {d['daily_brake']}")
     lines.append(f"Buying power floor: {d['buying_power_floor']}")
     lines.append(f"Envelope: {d.get('envelope', 'unknown')}")
@@ -386,6 +431,9 @@ def build_report(d):
                          f"5d {c['chg_5d_pct']:+.1f}%")
             lines.append(f"    loss plan: {c['exit_trigger']} | "
                          f"brake state: {c['brake_state']} | {status}")
+            if c.get("protect_lifted") and c.get("protect_mode"):
+                lines.append("    note: PROTECT lifted by documented "
+                             "session order")
             if c["verification"]:
                 lines.append(f"    verify first: {c['verification']}")
     else:
@@ -433,10 +481,22 @@ def main(argv=None):
                          "e.g. -9.3 for the Fri Oct 30 brake check")
     ap.add_argument("--snapshot", default=None,
                     help="path to a snapshot JSON (default: Fri fixture)")
+    ap.add_argument("--protect-lift", action="store_true",
+                    help="Aaron's documented PROTECT lift for this run "
+                         "(his direct order or the style's green day "
+                         "reset): PROTECT state is still reported, but "
+                         "buy candidates are not blocked for that reason. "
+                         "Never self-activates; the snapshot field "
+                         "\"protect_lifted\": true does the same")
     ap.add_argument("--log-calls", action="store_true",
                     help="also log JUDGE paper calls to output/calls.jsonl: "
                          "ACTIONABLE buy candidates as buys, momentum exit "
-                         "flags as exits (Monday shadow mode; off for tests)")
+                         "flags as exits (Monday shadow mode; off for tests). "
+                         "BLOCKED buy candidates are logged as decisions "
+                         "with outcome \"blocked\" on the JUDGE scorecard "
+                         "(judge_scorecard.py), NOT as paper calls, so THE "
+                         "BOARD's standings never count a blocked attempt "
+                         "as an open position")
     args = ap.parse_args(argv)
 
     snapshot = FRI_SNAPSHOT
@@ -444,7 +504,8 @@ def main(argv=None):
         with open(args.snapshot) as f:
             snapshot = json.load(f)
     scan = load_scan()
-    decisions = evaluate(snapshot, scan, day_change_pct=args.day_change_pct)
+    decisions = evaluate(snapshot, scan, day_change_pct=args.day_change_pct,
+                         protect_lift=args.protect_lift)
     report = build_report(decisions)
     print(report)
     if args.log_calls:
@@ -464,6 +525,21 @@ def main(argv=None):
                 n += 1
         print(f"[JUDGE] logged {n} paper call(s) to output/calls.jsonl",
               file=sys.stderr)
+        # Blocked candidates are attempts THE BOARD must be able to
+        # see without scoring them as trades: they go on the JUDGE
+        # scorecard as decisions with action "blocked" and the full
+        # reason list (the same channel run_city.py uses).
+        from judge_scorecard import log_decision
+        b = 0
+        for c in decisions["buy_candidates"]:
+            if c["blocked"]:
+                row = log_decision(
+                    "JUDGE", c["symbol"], "buy", c["last_close"],
+                    "blocked", reason="; ".join(c["blocked_reasons"]))
+                if row is not None:
+                    b += 1
+        print(f"[JUDGE] logged {b} blocked candidate decision(s) to "
+              "output/judge_decisions.jsonl", file=sys.stderr)
     out = os.path.join(HERE, "output", "rules-latest.json")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w") as f:

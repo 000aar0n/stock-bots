@@ -7,7 +7,14 @@ we hold, position exposure versus the $15k earnings cap from the
 Protected Momentum style, and a flag when a HELD name is inside
 2 sessions of its print.
 
-Run: python3 earnings_bot.py [--date YYYY-MM-DD]
+The CALENDAR owns earnings DATES only. What we HOLD comes from the
+session snapshot when one is supplied (--snapshot, or evaluate(
+snapshot=...)): positions and entries are read from it, and a
+calendar name absent from the snapshot is not held. The calendar's
+own held_qty / entry fields are the fallback for runs with no
+snapshot (fixtures and standalone checks).
+
+Run: python3 earnings_bot.py [--date YYYY-MM-DD] [--snapshot FILE]
 Writes output/earnings-latest.json as well as printing.
 """
 
@@ -76,23 +83,36 @@ def load_prices():
         return {}
 
 
-def evaluate(today=None):
+def evaluate(today=None, snapshot=None):
     today = today or date.today()
     prices = load_prices()
+    positions = (snapshot or {}).get("positions") if snapshot else None
     rows = []
     for sym, info in sorted(CALENDAR.items(), key=lambda kv: kv[1]["date"]):
         d = date.fromisoformat(info["date"])
-        qty = info["held_qty"]
-        price = prices.get(sym, info["entry"])
+        if positions is not None:
+            # Snapshot wins: the live book, not the calendar fixture.
+            pos = positions.get(sym) or {}
+            qty = pos.get("qty") or 0
+            entry = pos.get("entry")
+            note = (f"per session snapshot: held {qty} shares"
+                    + (f" at ${entry:,.2f} entry" if entry else "")
+                    if qty else
+                    "per session snapshot: not held")
+        else:
+            qty = info["held_qty"]
+            entry = info["entry"]
+            note = info["note"]
+        price = prices.get(sym, entry)
         exposure = round(qty * price, 2) if qty and price else 0.0
         sess = sessions_until(today, d)
         rows.append({
             "ticker": sym, "date": info["date"], "when": info["when"],
             "days_until": (d - today).days, "sessions_until": sess,
-            "held_qty": qty, "entry": info["entry"], "price_used": price,
+            "held_qty": qty, "entry": entry, "price_used": price,
             "exposure": exposure, "cap": EARNINGS_CAP,
             "over_cap": exposure > EARNINGS_CAP,
-            "bar": info["bar"], "note": info["note"],
+            "bar": info["bar"], "note": note,
             "flag": bool(qty and sess <= 2),
         })
     return rows
@@ -121,9 +141,17 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", default=None,
                     help="evaluate as of YYYY-MM-DD (default today)")
+    ap.add_argument("--snapshot", default=None,
+                    help="path to a session snapshot JSON; held "
+                         "quantities and entries come from it instead "
+                         "of the calendar fixture")
     args = ap.parse_args(argv)
     today = date.fromisoformat(args.date) if args.date else date.today()
-    rows = evaluate(today)
+    snapshot = None
+    if args.snapshot:
+        with open(args.snapshot) as f:
+            snapshot = json.load(f)
+    rows = evaluate(today, snapshot=snapshot)
     print(build_report(rows, today))
     out = os.path.join(HERE, "output", "earnings-latest.json")
     os.makedirs(os.path.dirname(out), exist_ok=True)

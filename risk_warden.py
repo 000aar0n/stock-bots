@@ -56,13 +56,20 @@ def load_scan():
         return json.load(f)
 
 
-def check(snapshot, scan, day_change_pct=None):
+def check(snapshot, scan, day_change_pct=None, protect_lift=False):
     syms = scan.get("symbols", {})
     value = snapshot["portfolio_value"]
     w = {}
     gain = value - snapshot.get("start_value", 100_000.0)
     peak = snapshot.get("peak_gain", 0.0)
     w["protect_mode"] = bool(peak > 0 and (peak - gain) / peak >= GIVEBACK)
+    # Same lift plumbing as JUDGE, on BOUNCER's own code: the flag or
+    # the snapshot field records that Aaron's documented lift is in
+    # effect. BOUNCER still computes and reports the raw PROTECT
+    # state above; the lift is cross checked against JUDGE's output
+    # below so the two engines can never silently split on it.
+    w["protect_lifted"] = bool(protect_lift
+                               or snapshot.get("protect_lifted"))
     if day_change_pct is None:
         w["brake_state"] = "unknown"
     elif day_change_pct <= BRAKE_2:
@@ -108,6 +115,10 @@ def compare(w, rules_path=None):
     if bool(j.get("protect_mode")) != w["protect_mode"]:
         out.append(f"PROTECT: BOUNCER says {w['protect_mode']}, "
                    f"JUDGE says {j.get('protect_mode')}")
+    if bool(j.get("protect_lifted")) != bool(w.get("protect_lifted")):
+        out.append(f"PROTECT lift: BOUNCER says "
+                   f"{bool(w.get('protect_lifted'))}, JUDGE says "
+                   f"{bool(j.get('protect_lifted'))}")
     j_caps = sorted(v["symbol"] for v in j.get("cap_violations", []))
     if j_caps != w["cap_violations"]:
         out.append(f"cap violations: BOUNCER {w['cap_violations']} "
@@ -132,6 +143,10 @@ def compare(w, rules_path=None):
 def build_report(w, disagreements):
     lines = ["BOUNCER - independent risk watchdog (shares no code with JUDGE)"]
     lines.append(f"PROTECT mode: {'ON' if w['protect_mode'] else 'off'}")
+    if w.get("protect_lifted"):
+        lines.append("PROTECT lift: in effect by documented session "
+                     "order (state still reported above; matches JUDGE "
+                     "when the cross check below is clean)")
     lines.append(f"Brake state: {w['brake_state']}")
     lines.append("Buying power floor: "
                  + (f"BELOW by ${w['bp_shortfall']:,.2f}"
@@ -158,6 +173,12 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--day-change-pct", type=float, default=None)
     ap.add_argument("--snapshot", default=None)
+    ap.add_argument("--protect-lift", action="store_true",
+                    help="record Aaron's documented PROTECT lift for "
+                         "this run, matching JUDGE's --protect-lift; "
+                         "the snapshot field \"protect_lifted\": true "
+                         "does the same. PROTECT state is still "
+                         "computed and reported either way")
     ap.add_argument("--log-calls", action="store_true",
                     help="log BOUNCER exit calls for THE BOARD (scored "
                          "on losses avoided)")
@@ -167,7 +188,8 @@ def main(argv=None):
         with open(args.snapshot) as f:
             snapshot = json.load(f)
     scan = load_scan()
-    w = check(snapshot, scan, day_change_pct=args.day_change_pct)
+    w = check(snapshot, scan, day_change_pct=args.day_change_pct,
+              protect_lift=args.protect_lift)
     disagreements = compare(w)
     w["disagreements"] = disagreements
     report = build_report(w, disagreements)

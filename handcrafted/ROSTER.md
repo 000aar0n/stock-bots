@@ -1,6 +1,6 @@
-# Handcrafted Roster: 100 bots, built like a peasant
+# Handcrafted Roster: 116 bots, built like a peasant
 
-One hundred individually written bots, each its own file in
+One hundred sixteen individually written bots, each its own file in
 `handcrafted/`, each with a distinct name and a genuinely distinct
 rule set, built from the shared `ta.py` (WICK) and `scanner.py`
 (FALCON) primitives. Design grid: strategy families (momentum,
@@ -127,4 +127,25 @@ Equality Protocol the unproven cannot be benched or bred at all.
 | 99 | ARBITER | arbiter.py | wide universe (55) | intraday | timeframe arbiter: calls only when daily AND 5 minute turning_up agree with rel volume over 1.0, exits on either knife | Daily and 5 minute agreement is rare enough universe wide to be signal, and the lower 1.0 volume bar is paid for by the double agreement. | DONE |
 | 100 | KEYSTONE | keystone.py | NVDA, MSFT, PLTR, KO, JPM, UNH, WMT | intraday | growth value keystone: QQQ minus SPY 5 session spread over +3 buys the growth top, under -3 the defensive top | The QQQ minus SPY spread at plus or minus 3 points has marked the 2026 regime flips between growth and defensive leadership. | DONE |
 
-Progress: 100 of 100 DONE.
+## The short squad (bots 101 to 116, added Mon Nov 2, 2026 at Aaron's order)
+
+Sixteen short specialists, all DAY book by default under the two book frame: shorts are intraday calls, flat by the close unless a session deliberately decides otherwise. They only CALL; JUDGE, BOUNCER and ODDS still gate any execution, and every module carries the standing honesty flag that it cannot verify fresh fundamental news, so a human clears shorts before anyone acts.
+
+| 101 | UNDERCUT | undercut.py | UNIVERSE | intraday | breakdown continuation short: close loses the prior 20 session low on a red day, rel volume over 1.2, already under the 50 day average | A floor that held for a month and then gives way on volume is trapped longs, and trapped longs are fuel for the next leg down. | DONE |
+| 102 | DEADCAT | deadcat.py | UNIVERSE | intraday | dead cat bounce fade: down 12% or more into a recent low, bounce of 3% or more into a falling 20 day average, short the bounce | The first bounce after a real fall is usually rented, not owned; the underside of a falling 20 day average is where the rental expires. | DONE |
+| 103 | BLOWOFF | blowoff.py | UNIVERSE | intraday | RSI blowoff fade: 10 session run of 12% or more with RSI at 74 or higher in the last 3 sessions, short the first close under the prior low | Shorting the top tick is a guess; shorting the first lower low after an RSI blowoff is a confirmation. | DONE |
+| 104 | RECLAIMFAIL | reclaimfail.py | UNIVERSE | intraday | failed reclaim short: poked above the 20 day average within 3 sessions and closed back under it while the average is flat to falling | A reclaim that cannot hold for three sessions was a head fake, and the downtrend never actually lost control. | DONE |
+| 105 | LAGGARD | laggard.py | UNIVERSE | intraday | sector relative weakness short: trails its own group median 5 session move by 6 points or more, under the 50 day average, RSI 35 or higher | Money rotates inside a sector before it leaves it; the name trailing its own group is the one holders sell next. The RSI floor keeps it out of capitulation lows. | DONE |
+| 106 | AFTERSHOCK | aftershock.py | CALENDAR | intraday | post earnings drift short: gapped down 4% or more on the print and still under the print day close 1 to 3 sessions later | Post earnings drift is the most documented slow leak in the market: the print is the shock, the drift is holders leaving into every uptick. | DONE |
+| 107 | KNIFEBACK | knifeback.py | UNIVERSE | intraday | knife catcher in reverse: short the first weak bounce (3.5% or less, bottom half close) after a falling knife day of 6% or more on 1.5x volume | A bounce that cannot hold the top half of its own range after a knife day was sellers using the bounce as an exit, not a bottom. | DONE |
+| 108 | TOPSIDE | topside.py | UNIVERSE | intraday | resistance rejection short: retest of the 60 session ceiling within 1.5%, red close under the prior low on rel volume over 1.1 | The same ceiling twice with a weak second test is supply proven at a price; the rejection day is the tell. | DONE |
+| 109 | CROSSDOWN | crossdown.py | UNIVERSE | intraday | fresh 50 day breakdown short: above the 50 day average 3 sessions ago, closed under it now, 20 day already beneath the 50 | Institutions defend the 50 day average; a fresh close under it with short term momentum already rolled is the bid stepping away. | DONE |
+| 110 | AIRPOCKET | airpocket.py | UNIVERSE | intraday | gap through support short: gap down 3% or more through a shelf within 2.5% of the 20 session low, bottom third close on 1.3x volume | A visible shelf that gaps through becomes a trap door: everyone who bought the shelf is underwater at the open and sells into the day. | DONE |
+| 111 | HEAVYHAND | heavyhand.py | UNIVERSE | intraday | distribution short: 3 or more heavy volume down days in the last 5, close under the 20 day average | Size cannot sell quietly: repeated above average volume down days are distribution, and the breakdown usually follows the distribution. | DONE |
+| 112 | PARABOLIC | parabolic.py | UNIVERSE | intraday | vertical run exhaustion short: up 25% or more in 10 sessions, short the first close under the prior session low, wide 5% stop for squeeze risk | A 25% ten session run is a crowd, not a trend; the first lower low is when the crowd notices the door. The stop is wider because squeezes are the known cost. | DONE |
+| 113 | LOWERTIDE | lowertide.py | UNIVERSE | intraday | lower highs sequence short: three consecutive 10 session windows with strictly lower highs, close under the 20 day average | Three lower highs in a row is buyers bidding less every time; structure this clean does not need a single dramatic day. | DONE |
+| 114 | ANCHORLESS | anchorless.py | UNIVERSE | intraday | 200 day regime break short: above the 200 day average 20 sessions ago, closed under it now on 1.1x volume, RSI 55 or lower | Losing the 200 day average is a regime change, not a dip; long term holders re-underwrite for weeks afterward. | DONE |
+| 115 | SECONDLEG | secondleg.py | UNIVERSE | intraday | second leg down short: 10% or greater drop into a recent low, relief bounce of 3% or more stalls, short the first red close under the bounce lows | Declines travel in legs and the second is usually faster, because the bounce buyers are trapped alongside the original holders. | DONE |
+| 116 | DUSK | dusk.py | UNIVERSE | intraday | closing weakness short: three straight closes in the bottom quartile of the day range, under the 20 day average | Where price closes inside its range is who won the day; three bottom quartile closes in a row is a habit, and tape habits persist. | DONE |
+
+Progress: 116 of 116 DONE.

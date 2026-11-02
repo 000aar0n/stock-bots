@@ -28,7 +28,16 @@ paper P&L once at least 20 ranked calls exist (before that it
 refuses). Top bots' configs get cloned with small variations over
 time; cloning is manual for now (see README).
 
+Sessions run the whole population with --snapshot FILE: the
+verified account snapshot is loaded and handed to the digest run
+through the leaderboard paper context (the same account_snapshot
+run_city.py supplies), so every bot in the run sees the same
+verified book the rest of the suite (JUDGE, BOUNCER, TREASURER)
+already read. Market data comes from the shared scanner data
+layer, one fetch per symbol, same as the standalone scan.
+
 Run: python3 bot_factory.py [--run] [--log-calls] [--cull]
+     [--snapshot FILE]
 """
 
 from __future__ import annotations
@@ -683,16 +692,41 @@ def main(argv=None):
     ap.add_argument("--run", action="store_true")
     ap.add_argument("--log-calls", action="store_true")
     ap.add_argument("--cull", action="store_true")
+    ap.add_argument("--snapshot", default=None,
+                    help="path to the session's verified account "
+                         "snapshot JSON; the digest run consumes it "
+                         "through the paper context, the same way "
+                         "run_city.py supplies it")
     args = ap.parse_args(argv)
+    snapshot = None
+    if args.snapshot:
+        with open(args.snapshot) as f:
+            snapshot = json.load(f)
+        if not isinstance(snapshot, dict) \
+                or "portfolio_value" not in snapshot \
+                or not isinstance(snapshot.get("positions"), dict):
+            ap.error(f"snapshot {args.snapshot} is not an account "
+                     "snapshot (needs portfolio_value and a positions "
+                     "object)")
     registry = build_registry()
     counts = ", ".join(f"{k} {v}" for k, v in
                        sorted(registry["counts_by_kind"].items()))
     print(f"BOT FACTORY - registry: {registry['count']} bots ({counts}) "
           f"written to output/bots.json")
+    if snapshot is not None:
+        print(f"Snapshot consumed: portfolio "
+              f"${snapshot['portfolio_value']:,.2f}, "
+              f"{len(snapshot['positions'])} position(s), "
+              f"from {args.snapshot}")
     if args.cull:
         cull(registry)
     if args.run:
-        print(run_digest(registry, log_calls=args.log_calls))
+        if snapshot is not None:
+            import leaderboard
+            with leaderboard.paper_context(account_snapshot=snapshot):
+                print(run_digest(registry, log_calls=args.log_calls))
+        else:
+            print(run_digest(registry, log_calls=args.log_calls))
     return 0
 
 

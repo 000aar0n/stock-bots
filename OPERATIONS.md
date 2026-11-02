@@ -3,7 +3,7 @@
 This file is an operating reference. It does not supersede README.md, Aaron's
 direct rules, or trading-style.md; where anything here conflicts with those,
 Aaron's direct rules and trading-style.md win.
-The 810 registry entries, roles, handcrafted modules, paper competitions and
+The 826 registry entries, roles, handcrafted modules, paper competitions and
 browser-session execution model remain. Quantity of bots is not evidence of edge.
 
 ## Unattended coordinator (optional, not running)
