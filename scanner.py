@@ -297,6 +297,9 @@ def run_scan():
                 "chg_1d_pct": round(pct(closes[-1], closes[-2]), 2),
                 "chg_5d_pct": round(pct(closes[-1], closes[-6]), 2),
                 "closes_tail": [round(c, 2) for c in closes[-3:]],
+                "closes_dated": [{"date": c["date"],
+                                  "close": round(c["close"], 2)}
+                                 for c in candles[-3:]],
                 "ta": daily_ta,
             }
             if sym in CORE_INTRADAY:

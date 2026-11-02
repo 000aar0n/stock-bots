@@ -75,6 +75,34 @@ def load_scan():
     return scanner.run_scan()
 
 
+def _two_straight_closes(sdata, qty, entry_date):
+    """Date aware two close momentum exit (rule 6, second half).
+
+    Only daily closes dated on or after the position's entry date
+    may count: closes from before the position existed cannot exit
+    it. (Mon Nov 2 bug: MSFT, PLTR and VST, all opened that morning
+    after the full liquidation, were flagged on Thu and Fri red
+    closes that predated their entries.) A missing entry date, or
+    scan data without dated closes, suppresses this flag; the -8%
+    from entry exit is separate and unaffected. Sessions write
+    entry_date into the snapshot for every position.
+    """
+    dated = (sdata or {}).get("closes_dated") or []
+    if not entry_date or len(dated) < 3:
+        return False
+    eligible = [i for i, c in enumerate(dated)
+                if str(c.get("date", "")) >= str(entry_date)]
+    if len(eligible) < 2:
+        return False
+    i1, i2 = eligible[-2], eligible[-1]
+    if i1 < 1 or i2 != i1 + 1:
+        return False
+    a = dated[i1 - 1]["close"]
+    b = dated[i1]["close"]
+    c = dated[i2]["close"]
+    return c < b < a if qty >= 0 else c > b > a
+
+
 def evaluate(snapshot, scan, day_change_pct=None, protect_lift=False):
     syms = scan.get("symbols", {})
     value = snapshot["portfolio_value"]
@@ -185,8 +213,7 @@ def evaluate(snapshot, scan, day_change_pct=None, protect_lift=False):
                 unevaluated.append(f"{sym}: no entry price, "
                                    "cannot evaluate the -8% exit rule")
         if sdata:
-            tail = sdata.get("closes_tail") or []
-            if len(tail) >= 3 and ((qty >= 0 and tail[-1] < tail[-2] < tail[-3]) or (qty < 0 and tail[-1] > tail[-2] > tail[-3])):
+            if _two_straight_closes(sdata, qty, pos.get("entry_date")):
                 reasons.append("red at two straight closes")
             t = sdata.get("ta") or {}
             row["ta_trend"] = t.get("trend")

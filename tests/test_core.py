@@ -365,6 +365,27 @@ def test_factory_consumes_snapshot(tmp_path,monkeypatch):
     with pytest.raises(SystemExit): bot_factory.main(['--snapshot',str(bad)])
 
 
+def test_two_red_closes_only_count_after_entry():
+    import risk_warden, rules
+    dated=[{'date':'2026-10-28','close':100.},{'date':'2026-10-29','close':99.},{'date':'2026-10-30','close':98.}]
+    scan={'symbols':{'XYZ':{'last_close':98.,'chg_5d_pct':-2.,'closes_tail':[100.,99.,98.],'closes_dated':dated,'ta':{'turning_up':False,'falling_knife':False}}},'pairs':[]}
+    base={'portfolio_value':100000,'start_value':100000,'peak_gain':0,'buying_power':50000}
+    # Opened today (Mon Nov 2, post liquidation): the Thu and Fri
+    # red closes predate the position and must NOT flag it in
+    # either engine (the MSFT/PLTR/VST bug).
+    snap=dict(base,positions={'XYZ':{'qty':100,'entry':95.,'entry_date':'2026-11-02'}})
+    assert rules.evaluate(snap,scan,day_change_pct=0.5)['exit_flags']==[]
+    assert risk_warden.check(snap,scan,day_change_pct=0.5)['exit_flags']==[]
+    # No entry date recorded: the guard suppresses the flag too.
+    snap2=dict(base,positions={'XYZ':{'qty':100,'entry':95.}})
+    assert rules.evaluate(snap2,scan,day_change_pct=0.5)['exit_flags']==[]
+    assert risk_warden.check(snap2,scan,day_change_pct=0.5)['exit_flags']==[]
+    # Genuinely held through both red closes after entry: MUST flag.
+    snap3=dict(base,positions={'XYZ':{'qty':100,'entry':100.,'entry_date':'2026-10-27'}})
+    assert rules.evaluate(snap3,scan,day_change_pct=0.5)['exit_flags']==[{'symbol':'XYZ','reasons':['red at two straight closes']}]
+    assert risk_warden.check(snap3,scan,day_change_pct=0.5)['exit_flags']==[{'symbol':'XYZ','reasons':['two straight red closes']}]
+
+
 def test_board_scores_short_round_trips():
     import leaderboard
     # THE BOARD must score a short round trip with flipped sign:

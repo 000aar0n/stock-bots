@@ -56,6 +56,31 @@ def load_scan():
         return json.load(f)
 
 
+def _two_straight_closes(sdata, qty, entry_date):
+    """Date aware two close exit, BOUNCER's own implementation of
+    the same rule JUDGE carries: only daily closes dated on or
+    after the position's entry date may count, because closes from
+    before the position existed cannot exit it (Mon Nov 2: MSFT,
+    PLTR and VST were flagged on pre entry Thu and Fri closes).
+    A missing entry date, or scan data without dated closes,
+    suppresses this flag; the -8% exit is unaffected.
+    """
+    dated = (sdata or {}).get("closes_dated") or []
+    if not entry_date or len(dated) < 3:
+        return False
+    eligible = [i for i, c in enumerate(dated)
+                if str(c.get("date", "")) >= str(entry_date)]
+    if len(eligible) < 2:
+        return False
+    i1, i2 = eligible[-2], eligible[-1]
+    if i1 < 1 or i2 != i1 + 1:
+        return False
+    a = dated[i1 - 1]["close"]
+    b = dated[i1]["close"]
+    c = dated[i2]["close"]
+    return c < b < a if qty >= 0 else c > b > a
+
+
 def check(snapshot, scan, day_change_pct=None, protect_lift=False):
     syms = scan.get("symbols", {})
     value = snapshot["portfolio_value"]
@@ -93,8 +118,7 @@ def check(snapshot, scan, day_change_pct=None, protect_lift=False):
         entry = pos.get("entry")
         if entry and (last / entry - 1.0) * 100.0 * (1 if pos["qty"] >= 0 else -1) <= EXIT_PCT:
             reasons.append("-8% from entry")
-        tail = s.get("closes_tail") or []
-        if len(tail) >= 3 and ((pos["qty"] >= 0 and tail[-1] < tail[-2] < tail[-3]) or (pos["qty"] < 0 and tail[-1] > tail[-2] > tail[-3])):
+        if _two_straight_closes(s, pos["qty"], pos.get("entry_date")):
             reasons.append("two straight red closes")
         if reasons:
             exits.append({"symbol": sym, "reasons": reasons})
