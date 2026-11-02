@@ -334,8 +334,15 @@ def main(argv=None):
         with open(args.snapshot) as f:
             snapshot = json.load(f)
     scan = rules.load_scan()
+    day_change_pct = args.day_change_pct
+    if day_change_pct is None:
+        # The session snapshot is the single source of truth: fall
+        # back to its verified day change so a session that passes
+        # only --snapshot does not fail closed on a missing flag.
+        # With neither, JUDGE's guard still blocks (fail closed).
+        day_change_pct = snapshot.get("day_change_pct")
     decisions = rules.evaluate(snapshot, scan,
-                               day_change_pct=args.day_change_pct)
+                               day_change_pct=day_change_pct)
     earnings_rows = earnings_bot.evaluate(snapshot=snapshot)
     odds_rows = odds.build_odds(scan)
     extra = None
