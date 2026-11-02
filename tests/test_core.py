@@ -306,12 +306,13 @@ def test_protect_lift_unblocks_but_state_stays_on(tmp_path):
     base=rules.evaluate(snapshot,scan,day_change_pct=5.08)
     assert base['protect_mode'] is True and base['protect_lifted'] is False
     cand=base['buy_candidates'][0]
-    assert cand['blocked'] is True
-    assert any('PROTECT mode' in r for r in cand['blocked_reasons'])
+    # Loosened Nov 2, 2026: PROTECT alone caps at half size, it no
+    # longer hard blocks (a full block needs the daily brake too).
+    assert cand['blocked'] is False and cand['protect_capped'] is True
     lifted=rules.evaluate(snapshot,scan,day_change_pct=5.08,protect_lift=True)
     assert lifted['protect_mode'] is True and lifted['protect_lifted'] is True
     cand=lifted['buy_candidates'][0]
-    assert cand['blocked'] is False
+    assert cand['blocked'] is False and cand['protect_capped'] is False
     assert 'PROTECT lifted by documented session order' in cand['blocked_reasons']
     # The snapshot field path (no flag) behaves the same, and the
     # lift never self-activates: a plain snapshot still blocks.
@@ -323,6 +324,56 @@ def test_protect_lift_unblocks_but_state_stays_on(tmp_path):
     assert w['protect_mode'] is True and w['protect_lifted'] is True
     p=tmp_path/'rules.json';p.write_text(json.dumps(via_snap))
     assert risk_warden.compare(w,str(p))==[]
+
+
+def test_protect_loosened_terms_nov2(tmp_path):
+    import allocator, risk_warden, rules
+    scan={'symbols':{'XYZ':{'last_close':100,'chg_5d_pct':1.0,'ta':{'turning_up':True,'falling_knife':False}}},'pairs':[]}
+    # 50% giveback of the peak gain: under the Nov 2 trigger (60%,
+    # was 40%) PROTECT must NOT engage at all.
+    snap50={'portfolio_value':108714.0,'start_value':100000,'peak_gain':17428,'buying_power':191259.98,'positions':{}}
+    d=rules.evaluate(snap50,scan,day_change_pct=1.0)
+    assert d['protect_mode'] is False and d['protect_capped'] is False
+    assert d['buy_candidates'][0]['protect_capped'] is False
+    # 65% giveback: PROTECT engages, but candidates are capped at
+    # half size, not blocked, and the allocator funds them at
+    # exactly half of the uncapped proposal.
+    snap65={'portfolio_value':106100.70,'start_value':100000,'peak_gain':17428,'buying_power':191259.98,'positions':{}}
+    d=rules.evaluate(snap65,scan,day_change_pct=1.0)
+    assert d['protect_mode'] is True and d['protect_reset'] is False
+    cand=d['buy_candidates'][0]
+    assert cand['blocked'] is False and cand['protect_capped'] is True
+    odds_rows=[{'ticker':'XYZ','ev_score':1.0}]
+    capped=allocator.build_sheet(snap65,d,[],False,odds_rows=odds_rows)
+    free=allocator.build_sheet(snap65,rules.evaluate(dict(snap65,peak_gain=0),scan,day_change_pct=1.0),[],False,odds_rows=odds_rows)
+    assert capped['agreement'] is True and free['agreement'] is True
+    assert capped['per_name']['XYZ']['protect_capped'] is True
+    assert capped['per_name']['XYZ']['budget']==pytest.approx(free['per_name']['XYZ']['budget']/2,abs=0.02)
+    assert capped['per_name']['XYZ']['uncapped_budget']==free['per_name']['XYZ']['budget']
+    # Green close yesterday: PROTECT auto clears even at 65%
+    # giveback, in both engines, cross check clean.
+    snap_reset=dict(snap65,prior_day_change_pct=1.5)
+    d=rules.evaluate(snap_reset,scan,day_change_pct=1.0)
+    assert d['protect_mode'] is True and d['protect_reset'] is True
+    assert 'PROTECT cleared: green close reset' in d['protect_note']
+    cand=d['buy_candidates'][0]
+    assert cand['blocked'] is False and cand['protect_capped'] is False
+    w=risk_warden.check(snap_reset,scan,day_change_pct=1.0)
+    assert w['protect_mode'] is True and w['protect_reset'] is True
+    assert w['protect_capped'] is False
+    p=tmp_path/'rules.json';p.write_text(json.dumps(d))
+    assert risk_warden.compare(w,str(p))==[]
+    # PROTECT on plus the daily brake tripped (day -4.5%): the
+    # emergency full block is back.
+    d=rules.evaluate(snap65,scan,day_change_pct=-4.5)
+    cand=d['buy_candidates'][0]
+    assert cand['blocked'] is True and cand['protect_capped'] is False
+    assert any('PROTECT' in r for r in cand['blocked_reasons'])
+    # No prior day field in the snapshot: the giveback math alone
+    # decides (reset off), and nothing crashes.
+    d=rules.evaluate(snap65,scan,day_change_pct=1.0)
+    assert d['prior_day_change_pct'] is None and d['protect_reset'] is False
+    assert d['protect_capped'] is True
 
 
 def test_arb_verified_eligibility_field():

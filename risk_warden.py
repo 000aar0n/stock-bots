@@ -27,7 +27,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CAP = 0.25
 FLOOR = 15_000.0
 EXIT_PCT = -8.0
-GIVEBACK = 0.40
+GIVEBACK = 0.60  # loosened from 0.40, Aaron, Mon Nov 2, 2026
+                 # ("make her less protecting"); parity with JUDGE
 BRAKE_1 = -4.0
 BRAKE_2 = -6.0
 
@@ -95,6 +96,19 @@ def check(snapshot, scan, day_change_pct=None, protect_lift=False):
     # below so the two engines can never silently split on it.
     w["protect_lifted"] = bool(protect_lift
                                or snapshot.get("protect_lifted"))
+    # Same Nov 2 loosening terms as JUDGE, on BOUNCER's own code:
+    # a green close (snapshot prior_day_change_pct positive) auto
+    # clears PROTECT, and while PROTECT is engaged (on, not lifted,
+    # not reset) it caps entries at half size instead of blocking;
+    # a full block needs the daily brake too. An absent prior day
+    # field falls back to the giveback math alone.
+    prior = snapshot.get("prior_day_change_pct")
+    w["prior_day_change_pct"] = prior
+    w["protect_reset"] = bool(w["protect_mode"]
+                              and prior is not None and prior > 0)
+    w["protect_capped"] = bool(w["protect_mode"]
+                               and not w["protect_lifted"]
+                               and not w["protect_reset"])
     if day_change_pct is None:
         w["brake_state"] = "unknown"
     elif day_change_pct <= BRAKE_2:
@@ -143,6 +157,14 @@ def compare(w, rules_path=None):
         out.append(f"PROTECT lift: BOUNCER says "
                    f"{bool(w.get('protect_lifted'))}, JUDGE says "
                    f"{bool(j.get('protect_lifted'))}")
+    if bool(j.get("protect_reset")) != bool(w.get("protect_reset")):
+        out.append(f"PROTECT reset: BOUNCER says "
+                   f"{bool(w.get('protect_reset'))}, JUDGE says "
+                   f"{bool(j.get('protect_reset'))}")
+    if bool(j.get("protect_capped")) != bool(w.get("protect_capped")):
+        out.append(f"PROTECT capped: BOUNCER says "
+                   f"{bool(w.get('protect_capped'))}, JUDGE says "
+                   f"{bool(j.get('protect_capped'))}")
     j_caps = sorted(v["symbol"] for v in j.get("cap_violations", []))
     if j_caps != w["cap_violations"]:
         out.append(f"cap violations: BOUNCER {w['cap_violations']} "
@@ -171,6 +193,15 @@ def build_report(w, disagreements):
         lines.append("PROTECT lift: in effect by documented session "
                      "order (state still reported above; matches JUDGE "
                      "when the cross check below is clean)")
+    if w.get("protect_reset"):
+        lines.append("PROTECT cleared: green close reset (prior "
+                     "session closed green; matches JUDGE when the "
+                     "cross check below is clean)")
+    elif w.get("protect_capped"):
+        lines.append("PROTECT capped: JUDGE caps new momentum "
+                     "entries at half size while PROTECT is on; a "
+                     "full block needs PROTECT plus the daily "
+                     "brake together")
     lines.append(f"Brake state: {w['brake_state']}")
     lines.append("Buying power floor: "
                  + (f"BELOW by ${w['bp_shortfall']:,.2f}"

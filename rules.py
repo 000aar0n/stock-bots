@@ -12,8 +12,16 @@ Implements the risk rules from the trading style doc
   1. Buying power floor: keep about $15k free.
   2. Single name cap: no name above about 25% of portfolio value.
   3. Daily brake: day down ~4% = no new positions; ~6% = also sell weakest.
-  4. Profit guard: giveback of ~40% of peak total gain = PROTECT mode
-     (no new momentum entries until a green day; stat arb may continue).
+  4. Profit guard: giveback of ~60% of peak total gain = PROTECT mode
+     (loosened Mon Nov 2, 2026, Aaron: "make her less protecting";
+     it was 40% until then). PROTECT no longer hard blocks entries
+     by itself: candidates are capped at half size (protect_capped)
+     and the allocator funds them at 0.5x. A full block needs
+     PROTECT plus the daily brake together (day at or below -4%).
+     A green close auto clears PROTECT: when the snapshot's
+     prior_day_change_pct is positive, the output states "PROTECT
+     cleared: green close reset" and nothing is capped or blocked
+     for this reason. Stat arb is unaffected either way.
   6. Momentum exit: a name down ~8% from entry, or red at two straight
      closes, is cut at the next check.
   Arb: pairs flagged at a 10+ point 5-session relative stretch are
@@ -56,7 +64,8 @@ TOTAL_ENVELOPE = 200_000.0    # Aaron, Sat Oct 31, 2026: total buying
                               # name, and the book stays working.
 BRAKE_NO_NEW = -4.0           # percent on the day
 BRAKE_SELL_WEAKEST = -6.0     # percent on the day
-PROTECT_GIVEBACK = 0.40       # of peak total gain
+PROTECT_GIVEBACK = 0.60       # of peak total gain (loosened from
+                              # 0.40, Aaron, Mon Nov 2, 2026)
 EXIT_FROM_ENTRY = -8.0        # percent
 ARB_GAP_FLAG = 10.0           # points
 
@@ -122,30 +131,61 @@ def evaluate(snapshot, scan, day_change_pct=None, protect_lift=False):
         giveback = 0.0
     decisions["giveback_pct_of_peak"] = round(giveback * 100, 1)
     decisions["protect_mode"] = giveback >= PROTECT_GIVEBACK
+    # PROTECT reset (Aaron, Mon Nov 2, 2026): a green close clears
+    # PROTECT automatically. Sessions write "prior_day_change_pct"
+    # (the last completed session's day change) into the snapshot;
+    # when it is positive, yesterday closed green and PROTECT
+    # neither caps nor blocks, whatever the giveback math says.
+    # An absent field falls back to the giveback math alone.
+    prior_day_change_pct = snapshot.get("prior_day_change_pct")
+    decisions["prior_day_change_pct"] = prior_day_change_pct
+    protect_reset = bool(
+        decisions["protect_mode"]
+        and prior_day_change_pct is not None
+        and prior_day_change_pct > 0)
+    decisions["protect_reset"] = protect_reset
     # PROTECT lift plumbing: a session may carry Aaron's documented
-    # lift (his direct order, or the style's own green day reset) into
-    # the engine either as the --protect-lift flag or as the snapshot
-    # field "protect_lifted": true. The lift NEVER self-activates:
-    # with neither input, PROTECT blocks exactly as before. When it is
-    # in effect the PROTECT state is still computed and reported
-    # (protect_mode stays true); it just stops blocking buy
-    # candidates, and each candidate notes the lift instead of the
-    # block. Every other gate (brake, floor, envelope, caps) applies
-    # unchanged.
+    # lift (his direct order) into the engine either as the
+    # --protect-lift flag or as the snapshot field
+    # "protect_lifted": true. The lift NEVER self-activates: with
+    # neither input, PROTECT applies as coded. When it is in effect
+    # the PROTECT state is still computed and reported
+    # (protect_mode stays true); it just stops capping or blocking
+    # buy candidates, and each candidate notes the lift. Every
+    # other gate (brake, floor, envelope, caps) applies unchanged.
     protect_lifted = bool(protect_lift or snapshot.get("protect_lifted"))
     decisions["protect_lifted"] = protect_lifted
-    if decisions["protect_mode"] and protect_lifted:
+    # PROTECT engaged = on by the math, not lifted, not reset.
+    # While engaged it CAPS new momentum entries at half size
+    # (protect_capped; the allocator funds capped candidates at
+    # 0.5x) instead of hard blocking them. A full block needs
+    # PROTECT plus the daily brake together (candidate loop below).
+    protect_engaged = bool(decisions["protect_mode"]
+                           and not protect_lifted and not protect_reset)
+    decisions["protect_capped"] = protect_engaged
+    if protect_reset:
+        decisions["protect_note"] = (
+            "PROTECT cleared: green close reset (prior session "
+            f"closed green at {prior_day_change_pct:+.1f}%). The "
+            "giveback math still trips, but PROTECT neither caps "
+            "nor blocks entries; it re-arms on the next red close.")
+    elif decisions["protect_mode"] and protect_lifted:
         decisions["protect_note"] = (
             "PROTECT is ON by the giveback math but LIFTED for this "
             "run by documented session order: buy candidates are not "
-            "blocked for this reason. Stat arb entries may continue; "
-            "ordered rebalances still complete; all other gates apply.")
-    else:
+            "capped or blocked for this reason. Stat arb entries may "
+            "continue; ordered rebalances still complete; all other "
+            "gates apply.")
+    elif protect_engaged:
         decisions["protect_note"] = (
-            "PROTECT: no new momentum entries until a green day; stat arb "
-            "entries may continue; ordered rebalances still complete."
-            if decisions["protect_mode"] else
-            "Profit guard not tripped.")
+            "PROTECT (loosened, Aaron Nov 2): new momentum entries "
+            "are HALF SIZE (protect_capped; the allocator funds "
+            "them at 0.5x), not blocked. A full block needs "
+            "PROTECT plus the daily brake together. Stat arb "
+            "entries may continue; ordered rebalances still "
+            "complete.")
+    else:
+        decisions["protect_note"] = "Profit guard not tripped."
 
     # --- daily brake (rule 3)
     if day_change_pct is None:
@@ -308,9 +348,15 @@ def evaluate(snapshot, scan, day_change_pct=None, protect_lift=False):
             blocked_reasons.append("buying power reserve unavailable or below floor")
         if gross >= TOTAL_ENVELOPE:
             blocked_reasons.append("gross envelope full")
-        if decisions["protect_mode"] and not protect_lifted:
+        protect_engaged = decisions["protect_capped"]
+        if protect_engaged and brake_state in ("brake", "full"):
+            # The emergency stop survives the Nov 2 loosening:
+            # PROTECT alone only caps size, but PROTECT plus a
+            # tripped daily brake (day at or below -4%) still
+            # fully blocks new momentum entries.
             blocked_reasons.append(
-                "PROTECT mode: no new momentum entries until a green day")
+                "PROTECT mode plus daily brake: entries fully "
+                "blocked (emergency stop)")
         if brake_state == "full":
             blocked_reasons.append(
                 "daily brake FULL: no new positions, no redeploy today")
@@ -318,12 +364,19 @@ def evaluate(snapshot, scan, day_change_pct=None, protect_lift=False):
             blocked_reasons.append(
                 "daily brake: no new positions, rotations into strength only")
         is_blocked = bool(blocked_reasons)
+        # Capped, not blocked: PROTECT is engaged and nothing else
+        # stopped this candidate, so it stays actionable and the
+        # allocator funds it at half size (0.5x).
+        protect_capped = bool(protect_engaged and not is_blocked)
         if decisions["protect_mode"] and protect_lifted:
-            # The lift replaces the PROTECT block: the candidate is
+            # The lift replaces the PROTECT cap: the candidate is
             # blocked only if some OTHER reason above fired, and the
-            # reason list notes the lift instead of the PROTECT block.
+            # reason list notes the lift instead of the cap.
             blocked_reasons = blocked_reasons + [
                 "PROTECT lifted by documented session order"]
+        if protect_reset:
+            blocked_reasons = blocked_reasons + [
+                "PROTECT cleared: green close reset"]
         is_latency = sym in latency_syms
         cands.append({
             "symbol": sym, "last_close": last,
@@ -336,6 +389,8 @@ def evaluate(snapshot, scan, day_change_pct=None, protect_lift=False):
             "brake_state": brake_state,
             "protect_mode": decisions["protect_mode"],
             "protect_lifted": protect_lifted,
+            "protect_reset": protect_reset,
+            "protect_capped": protect_capped,
             "blocked": is_blocked,
             "blocked_reasons": blocked_reasons,
             "latency_candidate": is_latency,
@@ -394,8 +449,12 @@ def build_report(d):
                  f"(peak gain ${d['peak_gain']:,.0f}, giveback "
                  f"{d['giveback_pct_of_peak']:.1f}% of peak)")
     protect_label = ('ON' if d['protect_mode'] else 'off')
-    if d['protect_mode'] and d.get("protect_lifted"):
+    if d['protect_mode'] and d.get("protect_reset"):
+        protect_label += " (CLEARED: green close reset)"
+    elif d['protect_mode'] and d.get("protect_lifted"):
         protect_label += " (LIFTED by documented session order)"
+    elif d.get("protect_capped"):
+        protect_label += " (CAPPED: new entries at half size)"
     lines.append(f"PROTECT mode: {protect_label} - {d['protect_note']}")
     lines.append(f"Daily brake: {d['daily_brake']}")
     lines.append(f"Buying power floor: {d['buying_power_floor']}")
@@ -461,6 +520,9 @@ def build_report(d):
             if c.get("protect_lifted") and c.get("protect_mode"):
                 lines.append("    note: PROTECT lifted by documented "
                              "session order")
+            if c.get("protect_capped"):
+                lines.append("    note: PROTECT capped: the allocator "
+                             "funds this entry at half size (0.5x)")
             if c["verification"]:
                 lines.append(f"    verify first: {c['verification']}")
     else:

@@ -42,6 +42,12 @@ candidate with a negative EV score is skipped no matter how loud
 its bot is. Pair candidates (no ODDS score) split what remains by
 gap strength, as before.
 
+PROTECT CAP WIRING (Aaron, Mon Nov 2, 2026): while PROTECT is
+engaged, JUDGE flags momentum candidates protect_capped instead
+of blocking them, and TREASURER funds a capped candidate at
+PROTECT_CAP_MULTIPLIER (0.5x) of what it would otherwise propose,
+printing both figures on the sheet. Pairs are never capped.
+
 Run: python3 allocator.py [--buy-mode] [--day-change-pct -9.3]
      [--sample-candidates]  (test mode: candidate pool built from
      scanner output instead of JUDGE's approved list)
@@ -64,6 +70,9 @@ RESERVE_BUY_MODE = 10_000.0
 SINGLE_NAME_CAP = 0.25
 EARNINGS_CAP = 15_000.0
 EARNINGS_WINDOW_SESSIONS = 2
+PROTECT_CAP_MULTIPLIER = 0.5  # PROTECT engaged = half size entries
+                              # (Aaron, Mon Nov 2, 2026 loosening;
+                              # JUDGE flags candidates protect_capped)
 
 
 def book_for(kind, hold_style):
@@ -120,6 +129,7 @@ def treasurer_propose(snapshot, decisions, earnings_rows, buy_mode,
         singles.append({"name": c["symbol"], "kind": "momentum",
                         "hold_style": hold,
                         "book": book_for("momentum", hold),
+                        "protect_capped": bool(c.get("protect_capped")),
                         "cap": max(0.0, cap-existing.get(c["symbol"],0)), "ev": ev_map.get(c["symbol"])})
     pairs = []
     for a in decisions.get("arb_candidates", []):
@@ -142,12 +152,23 @@ def treasurer_propose(snapshot, decisions, earnings_rows, buy_mode,
                            f"{c['ev']} (uncalibrated ODDS score), skipped")
             continue
         budget = min(c["cap"], remaining[c["book"]])
+        uncapped = budget
+        if c.get("protect_capped"):
+            # PROTECT cap (Aaron, Mon Nov 2, 2026): while PROTECT
+            # is engaged, JUDGE caps new momentum entries at half
+            # size instead of blocking them; TREASURER funds a
+            # capped candidate at 0.5x what it would otherwise
+            # propose. Pairs (stat arb) are never capped.
+            budget = budget * PROTECT_CAP_MULTIPLIER
         per_name[c["name"]] = {"budget": round(budget, 2),
                                "cap": round(c["cap"], 2),
                                "kind": c["kind"], "ev": c["ev"],
                                "book": c["book"],
+                               "protect_capped": bool(
+                                   c.get("protect_capped")),
+                               "uncapped_budget": round(uncapped, 2),
                                "hold_style": c["hold_style"]}
-        remaining[c["book"]] -= budget
+        remaining[c["book"]] -= per_name[c["name"]]["budget"]
     # Pairs split what is left of the LONG envelope, weighted by
     # gap strength.
     total_strength = sum(c["strength"] for c in pairs)
@@ -301,9 +322,12 @@ def print_sheet(sheet, snapshot):
         for name, p in sorted(sheet["per_name"].items(),
                               key=lambda kv: -kv[1]["budget"]):
             ev = f", EV {p['ev']:+.2f}" if p.get("ev") is not None else ""
+            pcap = (f", PROTECT CAPPED at half size (uncapped "
+                    f"${p['uncapped_budget']:,.2f})"
+                    if p.get("protect_capped") else "")
             lines.append(f"  [{p['book']:<4}] {name:<10} "
                          f"${p['budget']:>10,.2f}  "
-                         f"(cap ${p['cap']:,.2f}, {p['kind']}{ev})")
+                         f"(cap ${p['cap']:,.2f}, {p['kind']}{ev}{pcap})")
         spent = sum(p["budget"] for p in sheet["per_name"].values())
         lines.append(f"  Unallocated (stays in reserve): "
                      f"${sheet['deployable'] - spent:,.2f}")
@@ -368,6 +392,9 @@ def main(argv=None):
                    "deployable": sheet["deployable"],
                    "per_name": {k: v["budget"]
                                 for k, v in sheet["per_name"].items()},
+                   "protect_capped": {k: bool(v.get("protect_capped"))
+                                      for k, v in
+                                      sheet["per_name"].items()},
                    "books": {k: v["book"]
                              for k, v in sheet["per_name"].items()},
                    "envelopes": sheet["envelopes"],
