@@ -378,6 +378,28 @@ def evaluate(snapshot, scan, day_change_pct=None, protect_lift=False):
         blocked_reasons = blocked_reasons + [
             "PROTECT cleared: green close reset"]
 
+    # Scoreboard records (Tue Nov 3, 2026): candidates carry the
+    # completed live record of the bot behind their signal, and
+    # the candidate list orders by it - proven winners first,
+    # unproven next, proven losers last - inside the existing
+    # flow. Re-ranking only: blocked state, caps and BOUNCER are
+    # untouched. See odds.bot_records.
+    try:
+        import odds as _odds_for_records
+        records = _odds_for_records.bot_records(
+            price_fn=lambda t: (syms.get(t) or {}).get("last_close"))
+    except Exception:  # noqa: BLE001
+        records = {}
+
+    def _record_fields(source_bot):
+        try:
+            import odds as _om
+            tier, adj = _om.record_for_sources(records, [source_bot])
+        except Exception:  # noqa: BLE001
+            tier, adj = 0, 0.0
+        return {"record_source": source_bot, "record_tier": tier,
+                "record_ev_adj": adj}
+
     def _candidate(sym, s, source, ev_score=None):
         last = s["last_close"]
         is_latency = sym in latency_syms
@@ -402,6 +424,8 @@ def evaluate(snapshot, scan, day_change_pct=None, protect_lift=False):
                 "displays before any order" if is_latency else None),
             "candidate_source": source,
         }
+        cand.update(_record_fields(
+            "FALCON" if source == "turning_up" else "ODDS"))
         if ev_score is not None:
             cand["ev_score"] = ev_score
         return cand
@@ -414,7 +438,8 @@ def evaluate(snapshot, scan, day_change_pct=None, protect_lift=False):
         if not t.get("turning_up") or t.get("falling_knife"):
             continue
         cands.append(_candidate(sym, s, "turning_up"))
-    cands.sort(key=lambda c: -(c["chg_5d_pct"] or 0))
+    cands.sort(key=lambda c: (-c["record_tier"], -c["record_ev_adj"],
+                              -(c["chg_5d_pct"] or 0)))
 
     # ODDS ranked extras, best EV first. When at least two qualify,
     # two of the eight candidate slots are reserved for them, so an
@@ -455,6 +480,85 @@ def evaluate(snapshot, scan, day_change_pct=None, protect_lift=False):
     else:
         cands = (cands + extras)[:8]
     decisions["buy_candidates"] = cands[:8]
+
+    # --- short candidates (Tue Nov 3, 2026): the short squad's
+    # logged live short calls finally reach JUDGE. Until today the
+    # engine only ever built long candidates, so the one family
+    # with a winning paper record (+$3,046, zero negative bots)
+    # could never be sized or executed; the only executed short
+    # in two days was a stat arb pair leg. A short candidate is
+    # built from the bots' own open short paper calls in
+    # calls.jsonl, carries the mirrored loss plan (cover at +8%
+    # from entry or two straight green closes), the SAME blocked
+    # state and protect treatment as a buy candidate, an ODDS
+    # short score, and the source bots' scoreboard record. A name
+    # that is also a buy candidate is contested and listed
+    # separately instead of being candidated on both sides.
+    short_cands, short_contested = [], []
+    try:
+        import leaderboard as _lb
+        import odds as _om
+        open_state = {}
+        for c in _lb.load_calls(source="live"):
+            k = (c["bot"], c["ticker"])
+            if c["side"] in ("buy", "short"):
+                open_state[k] = c
+            elif c["side"] == "exit":
+                open_state.pop(k, None)
+        shorts_by_ticker = {}
+        for (bot, ticker), c in open_state.items():
+            if c["side"] == "short":
+                shorts_by_ticker.setdefault(ticker, []).append(bot)
+        try:
+            import earnings_bot as _eb
+            short_earn = {r["ticker"]: r for r in _eb.evaluate()}
+        except Exception:  # noqa: BLE001
+            short_earn = {}
+        buy_syms = {c["symbol"] for c in decisions["buy_candidates"]}
+        for sym, bots in sorted(shorts_by_ticker.items()):
+            if sym in snapshot["positions"]:
+                continue
+            if sym in buy_syms:
+                short_contested.append(sym)
+                continue
+            s = syms.get(sym)
+            if not s or s.get("last_close") is None:
+                continue
+            last = s["last_close"]
+            row = _om.score_candidate(sym, s, short_earn, side="short")
+            tier, adj = _om.record_for_sources(records, bots)
+            cand = {
+                "symbol": sym, "side": "short", "last_close": last,
+                "chg_5d_pct": s.get("chg_5d_pct"),
+                "exit_price": round(last * 1.08, 2),
+                "exit_trigger": (
+                    f"cover at the next check if up 8% from entry "
+                    f"(at or above ${last * 1.08:,.2f} on today's "
+                    "price) or green at two straight closes"),
+                "brake_state": brake_state,
+                "protect_mode": decisions["protect_mode"],
+                "protect_lifted": protect_lifted,
+                "protect_reset": protect_reset,
+                "protect_capped": protect_capped,
+                "blocked": is_blocked,
+                "blocked_reasons": list(blocked_reasons),
+                "latency_candidate": sym in latency_syms,
+                "verification": None,
+                "candidate_source": "short_call",
+                "sources": sorted(bots),
+                "hold_style": "intraday",
+                "record_source": ", ".join(sorted(bots)),
+                "record_tier": tier, "record_ev_adj": adj,
+                "ev_score": round(row["ev_score"] + adj, 2),
+            }
+            short_cands.append(cand)
+    except Exception:  # noqa: BLE001
+        short_cands, short_contested = [], []
+    short_cands.sort(key=lambda c: (-c["record_tier"],
+                                    -c["record_ev_adj"],
+                                    -c["ev_score"]))
+    decisions["short_candidates"] = short_cands[:8]
+    decisions["short_contested"] = sorted(short_contested)
     decisions["falling_knife_names"] = sorted(
         sym for sym, s in syms.items()
         if sym not in snapshot["positions"]
@@ -583,6 +687,28 @@ def build_report(d):
     else:
         lines.append("Buy candidates: none flagged turning up outside "
                      "the book in this scan")
+    lines.append("")
+    if d.get("short_candidates"):
+        lines.append("SHORT CANDIDATES (open live short calls from the "
+                     "squad; every one ships with its cover plan)")
+        for c in d["short_candidates"]:
+            status = ("BLOCKED - " + "; ".join(c["blocked_reasons"])) \
+                if c["blocked"] else "ACTIONABLE"
+            lines.append(f"  {c['symbol']}: ${c['last_close']:,.2f}, "
+                         f"EV {c['ev_score']:+.2f}, called by "
+                         f"{', '.join(c['sources'])}")
+            lines.append(f"    cover plan: {c['exit_trigger']} | "
+                         f"brake state: {c['brake_state']} | {status}")
+            if c.get("protect_capped"):
+                lines.append("    note: PROTECT capped: the allocator "
+                             "funds this entry at half size (0.5x)")
+    else:
+        lines.append("Short candidates: no open live short calls "
+                     "outside the book in this scan")
+    if d.get("short_contested"):
+        lines.append("Short contested (also a buy candidate, held "
+                     "off both lists' short side): "
+                     + ", ".join(d["short_contested"]))
     if d.get("falling_knife_names"):
         lines.append("")
         lines.append("FALLING KNIFE BLOCK (never buy candidates): "
@@ -661,6 +787,12 @@ def main(argv=None):
                 log_call("JUDGE", c["symbol"], "buy", c["last_close"],
                          "JUDGE buy candidate, loss plan: " + c["exit_trigger"])
                 n += 1
+        for c in decisions.get("short_candidates", []):
+            if not c["blocked"]:
+                log_call("JUDGE", c["symbol"], "short", c["last_close"],
+                         "JUDGE short candidate, cover plan: "
+                         + c["exit_trigger"])
+                n += 1
         for e in decisions["exit_flags"]:
             s = syms.get(e["symbol"]) or {}
             if s.get("last_close"):
@@ -679,6 +811,13 @@ def main(argv=None):
             if c["blocked"]:
                 row = log_decision(
                     "JUDGE", c["symbol"], "buy", c["last_close"],
+                    "blocked", reason="; ".join(c["blocked_reasons"]))
+                if row is not None:
+                    b += 1
+        for c in decisions.get("short_candidates", []):
+            if c["blocked"]:
+                row = log_decision(
+                    "JUDGE", c["symbol"], "short", c["last_close"],
                     "blocked", reason="; ".join(c["blocked_reasons"]))
                 if row is not None:
                     b += 1

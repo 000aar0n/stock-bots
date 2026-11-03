@@ -476,12 +476,18 @@ def assemble_gate_record(ticker, side, qty, book, out_dir=None, bot=None):
     rules = load("rules-latest.json")
     cand = None
     if rules:
-        for c in rules.get("buy_candidates", []):
+        # A short looks in JUDGE's short candidate list (Tue
+        # Nov 3, 2026); before this the assembler only ever searched
+        # buy_candidates, so a fully gated short could not even be
+        # prepared for HANDS.
+        pool = rules.get("short_candidates", []) if side == "short" \
+            else rules.get("buy_candidates", [])
+        for c in pool:
             if c.get("symbol") == ticker:
                 cand = c
                 break
         if cand is None:
-            problems.append(f"JUDGE has no buy candidate for {ticker}")
+            problems.append(f"JUDGE has no {side} candidate for {ticker}")
         else:
             record["judge_approved"] = cand.get("blocked") is False
             if not record["judge_approved"]:
@@ -498,8 +504,14 @@ def assemble_gate_record(ticker, side, qty, book, out_dir=None, bot=None):
             problems.append(f"BOUNCER flags {ticker}")
     odds_rows = load("odds-latest.json")
     if isinstance(odds_rows, list):
+        # Prefer the row for this side (a name can carry both a
+        # long and a short row now); fall back to any row for the
+        # ticker so pre-short-era files still assemble.
         row = next((r for r in odds_rows
-                    if r.get("ticker") == ticker), None)
+                    if r.get("ticker") == ticker
+                    and r.get("side", "long") == side), None) or \
+            next((r for r in odds_rows
+                  if r.get("ticker") == ticker), None)
         if row is None:
             problems.append(f"ODDS has no row for {ticker}")
         else:
@@ -521,6 +533,12 @@ def assemble_gate_record(ticker, side, qty, book, out_dir=None, bot=None):
             problems.append(
                 f"book mismatch: allocator tags {ticker} "
                 f"{books[ticker]}, gate record says {book}")
+        sides = budget.get("sides") or {}
+        if ticker in sides and sides[ticker] == "short" \
+                and side != "short":
+            problems.append(
+                f"side mismatch: allocator funded {ticker} as a "
+                f"short, gate record says {side}")
         # Book usage for the envelope rail means dollars already
         # committed in a book BEFORE this order. On the allocator
         # sheet that is the budget committed to OTHER names in the

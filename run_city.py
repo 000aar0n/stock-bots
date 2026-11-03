@@ -135,8 +135,16 @@ def run_cycle(snapshot_path,now=None):
                 log_decision("JUDGE", candidate["symbol"], "buy", candidate["last_close"],
                              "blocked" if candidate["blocked"] else "approved",
                              reason="; ".join(candidate["blocked_reasons"]), bar_id=market["date"])
+            # Short candidates get the same JUDGE decision record
+            # and, when sized, a place on the action list (Tue
+            # Nov 3, 2026): until today run_city only ever surfaced
+            # buy candidates, so an approved short died here.
+            for candidate in decisions.get("short_candidates", []):
+                log_decision("JUDGE", candidate["symbol"], "short", candidate["last_close"],
+                             "blocked" if candidate["blocked"] else "approved",
+                             reason="; ".join(candidate["blocked_reasons"]), bar_id=market["date"])
             summary.update(status='CLOSING_INTRADAY_PAPER' if cutoff else 'READY',
-                           actions=[] if cutoff else [c for c in decisions['buy_candidates'] if not c['blocked'] and budget['per_name'].get(c['symbol'],{}).get('budget',0)>0],
+                           actions=[] if cutoff else [c for c in decisions['buy_candidates'] if not c['blocked'] and budget['per_name'].get(c['symbol'],{}).get('budget',0)>0] + [c for c in decisions.get('short_candidates', []) if not c['blocked'] and budget['per_name'].get(c['symbol'],{}).get('budget',0)>0],
                            budget=budget,coverage=len(scan['symbols']))
         # Same evidence cannot cause multiple seasons; no automatic deletion of JUDGE.
         with contextlib.redirect_stdout(io.StringIO()): evolution.run_seasons(1)
@@ -154,27 +162,13 @@ def main(argv=None):
     ap.add_argument('--interval',type=int,default=60)
     ap.add_argument('--sync-input',help='optional Muse verified execution file; never paper calls')
     ap.add_argument('--deliver',action='store_true')
-    ap.add_argument('--publish-monitor',action='store_true',help='publish sanitized monitor JSON with existing GitHub host credentials')
     args=ap.parse_args(argv)
     if args.interval<30: ap.error('interval must be at least 30 seconds')
     try:
         with locked(os.path.join(OUT,'city-runner'),blocking=False):
-            last_monitor_publish=0
             while True:
                 summary=run_cycle(args.snapshot)
                 print(json.dumps(summary),flush=True)
-                # A publication failure cannot stop risk checks or verified
-                # COURIER delivery. Export errors never erase the last snapshot.
-                try:
-                    from monitor_data import export_snapshot
-                    export_snapshot()
-                    if args.publish_monitor and time.monotonic()-last_monitor_publish>=300:
-                        from monitor_publish import publish
-                        print(json.dumps(publish()),flush=True)
-                        last_monitor_publish=time.monotonic()
-                except Exception as error:
-                    # Avoid echoing HTTP request bodies, auth or account fields.
-                    print(json.dumps({'monitor':'publication unavailable','error_type':type(error).__name__}),flush=True)
                 if args.sync_input or args.deliver:
                     params=(['--input',args.sync_input] if args.sync_input else [])+(['--deliver'] if args.deliver else [])
                     sync_bot.main(params)

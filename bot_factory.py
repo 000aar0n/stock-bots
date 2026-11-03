@@ -368,6 +368,96 @@ def _exit_blocked_same_day(entry, exit_price, today=None):
     return adverse < SAME_DAY_EXIT_MIN_ADVERSE_PCT
 
 
+# Families whose bots log entries in the digest but grew no exit
+# code of their own (Tue Nov 3, 2026): specialists, strategists and
+# captains logged buys only, and watcher / rival exits leaned on a
+# single daily falling_knife flag diluted by watcher/shadow cross
+# suppression - so whole families sat at zero completed trades
+# while holding dozens of open paper positions. The sweep below
+# gives every one of them the city's standing Protected Momentum
+# exits, evaluated on the real current price: the -8% adverse stop
+# from the logged entry, two straight closes against the position
+# with pre-entry closes excluded (only closes dated on or after
+# the entry count, the Mon Nov 2 entry date fix), and the daily
+# falling_knife flag. Exits log at the real last close from the
+# cache, never at invented prices, and the same day churn guard in
+# maybe_call still applies to every exit the sweep requests.
+SWEEP_EXIT_KINDS = ("watcher", "rival", "sniper", "specialist",
+                    "strategist", "captain")
+
+
+def _position_exit_reason(entry, cache, ticker):
+    """Why an open paper position should close now, or None.
+    entry is the open position record (side, entry_price, ts)."""
+    price = cache.last_close(ticker)
+    entry_price = entry.get("entry_price")
+    if price is None or not entry_price:
+        return None
+    side = entry.get("side") or "buy"
+    adverse = ((entry_price - price) / entry_price * 100.0) \
+        if side != "short" else ((price - entry_price) / entry_price * 100.0)
+    if adverse >= 8.0:
+        return f"{'stop' if side != 'short' else 'cover stop'}: " \
+               f"{adverse:.1f}% adverse from the logged entry " \
+               "(Protected Momentum -8% exit)"
+    try:
+        candles = cache.daily(ticker)
+    except Exception:  # noqa: BLE001
+        candles = None
+    if candles:
+        entry_date = str(entry.get("ts") or "")[:10]
+        dated = [(c.get("date"), c.get("close")) for c in candles
+                 if c.get("close") is not None]
+        # Two straight closes against the position, counting only
+        # closes dated on or after the entry (pre-entry closes
+        # never count). The first eligible close needs the close
+        # before it as its comparison base.
+        for i in range(2, len(dated)):
+            if entry_date and dated[i - 1][0] and \
+                    dated[i - 1][0] < entry_date:
+                continue
+            a, b, c_ = dated[i - 2][1], dated[i - 1][1], dated[i][1]
+            if side != "short" and c_ < b < a:
+                return "two straight red closes while held " \
+                       "(Protected Momentum exit)"
+            if side == "short" and c_ > b > a:
+                return "two straight green closes while held " \
+                       "(Protected Momentum cover)"
+    try:
+        dta = cache.daily_ta(ticker)
+    except Exception:  # noqa: BLE001
+        dta = None
+    if dta and dta.get("falling_knife"):
+        return "falling_knife on daily candles"
+    return None
+
+
+def _sweep_family_exits(bots_by_name, open_info, cache, call_fn):
+    """Request exits for open positions held by the exit-less
+    families. call_fn(bot_name, ticker, 'exit', price, reason) does
+    the logging (maybe_call in production, which logs at the real
+    intraday last close and pops open_info when the exit lands).
+    An exit counts as landed when the position leaves open_info.
+    Returns digest lines."""
+    lines = []
+    for (bot_name, ticker), entry in list(open_info.items()):
+        bot = bots_by_name.get(bot_name)
+        if bot is None or bot.get("kind") not in SWEEP_EXIT_KINDS:
+            continue
+        if bot.get("benched"):
+            continue
+        reason = _position_exit_reason(entry, cache, ticker)
+        if not reason:
+            continue
+        price = cache.last_close(ticker)
+        call_fn(bot_name, ticker, "exit", price,
+                f"{bot_name}: family exit sweep - {reason}")
+        if (bot_name, ticker) not in open_info:
+            lines.append(f"  {bot_name} closes {ticker} "
+                         f"({reason})")
+    return lines
+
+
 # ---------------------------------------------------------------- runner
 
 def run_digest(registry, log_calls=False):
@@ -647,6 +737,22 @@ def run_digest(registry, log_calls=False):
             elif dta["falling_knife"]:
                 maybe_call(f"{t} ANCHOR", t, "exit", price,
                            "ANCHOR: falling_knife exit")
+
+    # FAMILY EXIT SWEEP (Tue Nov 3, 2026): positions held by the
+    # families that never grew exit logic of their own (specialist,
+    # strategist, captain) and the knife-only families (watcher,
+    # rival, sniper) are checked against the standing Protected
+    # Momentum exits at the real current price, so an entry any of
+    # them logged can actually close and score. Sits before the
+    # captains section so a captain position gets its exit check
+    # even on a run where it also escalates new entries.
+    if log_calls:
+        sweep_lines = _sweep_family_exits(bots, open_info, cache,
+                                          maybe_call)
+        if sweep_lines:
+            lines.append("Family exit sweep (Protected Momentum "
+                         "exits for the exit-less families):")
+            lines.extend(sweep_lines)
 
     # SECTION CAPTAINS: aggregate each section's signals, pre rank
     # by the source bot's proven record (Equality Protocol: quote

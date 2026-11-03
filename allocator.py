@@ -48,6 +48,16 @@ of blocking them, and TREASURER funds a capped candidate at
 PROTECT_CAP_MULTIPLIER (0.5x) of what it would otherwise propose,
 printing both figures on the sheet. Pairs are never capped.
 
+SHORT SIDE (Tue Nov 3, 2026): TREASURER also sizes JUDGE's short
+candidates. A short is a single name entry funded from its own
+book's envelope only, and it needs a positive short EV (ODDS now
+scores the short side; the candidate's own record adjusted
+ev_score is the fallback). Day shorts ride the DAY book by
+default; a short declared a swing hold rides the LONG book as a
+hedge and is additionally capped by HEDGE_CAP_PCT (25%) of the
+LONG envelope - the Protected Momentum hedge cap in operational
+form. LEDGER verifies the hedge cap too.
+
 Run: python3 allocator.py [--buy-mode] [--day-change-pct -9.3]
      [--sample-candidates]  (test mode: candidate pool built from
      scanner output instead of JUDGE's approved list)
@@ -73,13 +83,20 @@ EARNINGS_WINDOW_SESSIONS = 2
 PROTECT_CAP_MULTIPLIER = 0.5  # PROTECT engaged = half size entries
                               # (Aaron, Mon Nov 2, 2026 loosening;
                               # JUDGE flags candidates protect_capped)
+HEDGE_CAP_PCT = 0.25          # LONG book shorts (hedges) may use at
+                              # most this share of the LONG envelope
+                              # (Protected Momentum hedge cap)
 
 
 def book_for(kind, hold_style):
     """Which book a candidate belongs to. Pairs are swing by city
     convention (stat arb is exempt from the same day flat rule), and
     any candidate carrying hold_style "swing" is a long hold.
-    Everything else is intraday by default, the city default."""
+    Everything else is intraday by default, the city default.
+    Shorts follow the same rule: intraday shorts ride the DAY book,
+    swing shorts ride the LONG book as hedges."""
+    if kind == "short":
+        return "LONG" if hold_style == "swing" else "DAY"
     if kind == "pair" or hold_style == "swing":
         return "LONG"
     return "DAY"
@@ -112,7 +129,11 @@ def treasurer_propose(snapshot, decisions, earnings_rows, buy_mode,
     value = snapshot["portfolio_value"]
     existing = {r["symbol"]: abs(r.get("market_value") or 0) for r in decisions.get("positions", [])}
     earn = {r["ticker"]: r for r in earnings_rows}
-    ev_map = {r["ticker"]: r["ev_score"] for r in (odds_rows or [])}
+    rows = odds_rows or []
+    ev_map = {r["ticker"]: r["ev_score"] for r in rows
+              if r.get("side") != "short"}
+    ev_short_map = {r["ticker"]: r["ev_score"] for r in rows
+                    if r.get("side") == "short"}
     caps = envelope_caps(deployable)
 
     singles = []
@@ -127,10 +148,29 @@ def treasurer_propose(snapshot, decisions, earnings_rows, buy_mode,
             cap = min(cap, EARNINGS_CAP)
         hold = c.get("hold_style", "intraday")
         singles.append({"name": c["symbol"], "kind": "momentum",
+                        "side": "long",
                         "hold_style": hold,
                         "book": book_for("momentum", hold),
                         "protect_capped": bool(c.get("protect_capped")),
                         "cap": max(0.0, cap-existing.get(c["symbol"],0)), "ev": ev_map.get(c["symbol"])})
+    # Short candidates (Tue Nov 3, 2026): same single name
+    # treatment as longs, funded from their own book's envelope.
+    # EV comes from ODDS's short rows when present, else from the
+    # candidate's own record adjusted ev_score. A LONG book short
+    # is a hedge and is additionally bounded by the hedge cap.
+    for c in decisions.get("short_candidates", []):
+        if c.get("blocked"):
+            continue
+        cap = SINGLE_NAME_CAP * value
+        hold = c.get("hold_style", "intraday")
+        ev = ev_short_map.get(c["symbol"], c.get("ev_score"))
+        singles.append({"name": c["symbol"], "kind": "short",
+                        "side": "short",
+                        "hold_style": hold,
+                        "book": book_for("short", hold),
+                        "protect_capped": bool(c.get("protect_capped")),
+                        "cap": max(0.0, cap - existing.get(c["symbol"], 0)),
+                        "ev": ev})
     pairs = []
     for a in decisions.get("arb_candidates", []):
         if a["blocked"] or not a.get("verified_eligibility", False):
@@ -143,15 +183,20 @@ def treasurer_propose(snapshot, decisions, earnings_rows, buy_mode,
     per_name = {}
     skipped = []
     remaining = dict(caps)
+    hedge_remaining = HEDGE_CAP_PCT * caps["LONG"]
     # Singles first, top down by EV, each funded only from its own
     # book's envelope. Negative EV is skipped outright. An envelope
-    # that runs dry does not borrow from the other book.
+    # that runs dry does not borrow from the other book. A LONG
+    # book short (a hedge) is additionally bounded by the hedge
+    # cap: HEDGE_CAP_PCT of the LONG envelope across all hedges.
     for c in sorted(singles, key=lambda x: -(x["ev"] or 0.0)):
         if c["ev"] is None or c["ev"] <= 0:
             skipped.append(f"{c['name']}: negative EV score "
                            f"{c['ev']} (uncalibrated ODDS score), skipped")
             continue
         budget = min(c["cap"], remaining[c["book"]])
+        if c["kind"] == "short" and c["book"] == "LONG":
+            budget = min(budget, hedge_remaining)
         uncapped = budget
         if c.get("protect_capped"):
             # PROTECT cap (Aaron, Mon Nov 2, 2026): while PROTECT
@@ -163,12 +208,15 @@ def treasurer_propose(snapshot, decisions, earnings_rows, buy_mode,
         per_name[c["name"]] = {"budget": round(budget, 2),
                                "cap": round(c["cap"], 2),
                                "kind": c["kind"], "ev": c["ev"],
+                               "side": c.get("side", "long"),
                                "book": c["book"],
                                "protect_capped": bool(
                                    c.get("protect_capped")),
                                "uncapped_budget": round(uncapped, 2),
                                "hold_style": c["hold_style"]}
         remaining[c["book"]] -= per_name[c["name"]]["budget"]
+        if c["kind"] == "short" and c["book"] == "LONG":
+            hedge_remaining -= per_name[c["name"]]["budget"]
     # Pairs split what is left of the LONG envelope, weighted by
     # gap strength.
     total_strength = sum(c["strength"] for c in pairs)
@@ -254,6 +302,16 @@ def ledger_verify(snapshot, sheet, earnings_rows):
             problems.append(f"{book} envelope allocated: TREASURER "
                             f"${env[book]['allocated']:,.2f} vs LEDGER "
                             f"${book_totals[book]:,.2f}")
+    # Hedge cap, recomputed independently: LONG book shorts (the
+    # hedges) may use at most HEDGE_CAP_PCT of the LONG envelope.
+    hedge_total = sum(p["budget"] for p in sheet["per_name"].values()
+                      if p.get("side") == "short"
+                      and p.get("book") == "LONG")
+    hedge_cap = HEDGE_CAP_PCT * caps["LONG"]
+    if hedge_total > hedge_cap + 0.01:
+        problems.append(f"LONG book hedge shorts sum "
+                        f"${hedge_total:,.2f} over the hedge cap "
+                        f"${hedge_cap:,.2f} (25% of the LONG envelope)")
     return (not problems), round(deployable, 2), problems
 
 
@@ -322,12 +380,13 @@ def print_sheet(sheet, snapshot):
         for name, p in sorted(sheet["per_name"].items(),
                               key=lambda kv: -kv[1]["budget"]):
             ev = f", EV {p['ev']:+.2f}" if p.get("ev") is not None else ""
+            side = " SHORT" if p.get("side") == "short" else ""
             pcap = (f", PROTECT CAPPED at half size (uncapped "
                     f"${p['uncapped_budget']:,.2f})"
                     if p.get("protect_capped") else "")
             lines.append(f"  [{p['book']:<4}] {name:<10} "
                          f"${p['budget']:>10,.2f}  "
-                         f"(cap ${p['cap']:,.2f}, {p['kind']}{ev}{pcap})")
+                         f"(cap ${p['cap']:,.2f}, {p['kind']}{side}{ev}{pcap})")
         spent = sum(p["budget"] for p in sheet["per_name"].values())
         lines.append(f"  Unallocated (stays in reserve): "
                      f"${sheet['deployable'] - spent:,.2f}")
@@ -396,6 +455,8 @@ def main(argv=None):
                                       for k, v in
                                       sheet["per_name"].items()},
                    "books": {k: v["book"]
+                             for k, v in sheet["per_name"].items()},
+                   "sides": {k: v.get("side", "long")
                              for k, v in sheet["per_name"].items()},
                    "envelopes": sheet["envelopes"],
                    "caps": sheet["caps"], "agreement": sheet["agreement"],

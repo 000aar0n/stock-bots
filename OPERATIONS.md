@@ -187,6 +187,92 @@ there. Never put credentials in messages. ChatGPT replies there directly.
   bots, their winning logged causes, and the old judge's errors. Hard risk
   checks always remain mandatory.
 
+## Short side gate path (Tue Nov 3, 2026)
+
+Until this date the gate was long only at every joint: JUDGE built
+only buy candidates and never read the short squad's logged calls,
+ODDS scored only turning_up longs, TREASURER consumed only
+buy_candidates, run_city's action list and HANDS's gate assembler
+searched only buy_candidates. The short squad was the only
+profitable family on THE BOARD (+$3,046 paper, zero negative bots)
+and zero squad shorts ever executed. The path is now symmetric:
+
+- JUDGE (rules.py) builds `short_candidates` from the bots' open
+  live short paper calls in output/calls.jsonl, one per ticker,
+  each with a cover plan (cover at +8% from entry or two straight
+  green closes), the SAME blocked state and PROTECT treatment as a
+  buy candidate, an ODDS short score, and the source bots'
+  scoreboard record. A ticker that is also a buy candidate is
+  contested: it is listed in `short_contested` and candidated on
+  the long side only.
+- ODDS (odds.py) scores the short side with mirrored math
+  (score_candidate side="short": below the averages counts for the
+  short; the loss side is the nearer of the +8% cover stop and the
+  20 day high) and emits a side "short" row for every name with an
+  open live short call, sourced by the bots holding the call.
+- TREASURER (allocator.py) sizes short candidates like any single
+  name, from their own book's envelope only, EV from ODDS's short
+  rows with the candidate's own record adjusted ev_score as
+  fallback. Day shorts ride the DAY book by default; a short
+  declared hold_style "swing" rides the LONG book as a hedge and
+  is additionally bounded by the hedge cap: all LONG book shorts
+  together may use at most HEDGE_CAP_PCT (25%) of the LONG
+  envelope. LEDGER verifies the hedge cap independently.
+  budget.json now also carries a per name "sides" map.
+- run_city puts sized short candidates on the action list and logs
+  JUDGE decisions for them; HANDS's `prepare` assembles gate
+  records for side "short" from the same outputs (JUDGE short
+  candidate, side matching ODDS row, allocator side check).
+
+## Family exit sweep (Tue Nov 3, 2026)
+
+Watcher, rival, strategist, captain and specialist families logged
+entries whose exits never paired: specialists, strategists and
+captains had no exit code path at all, and watcher/rival exits
+leaned on a single daily falling_knife flag (44 captain, 38
+specialist, 49 strategist and 32 watcher paper positions were open
+and unscorable). bot_factory.run_digest now runs a family exit
+sweep (bot_factory._sweep_family_exits) before the captains
+section: every open position held by a watcher, rival, sniper,
+specialist, strategist or captain bot is checked against the
+standing Protected Momentum exits at the real current price - the
+-8% adverse stop from the logged entry (cover stop for shorts),
+two straight closes against the position counting only closes
+dated on or after the entry, and the daily falling_knife flag.
+Exits log through the same maybe_call path as every other call
+(real intraday price, same day churn guard included). The fix is
+forward looking only: no stale entry is paired retroactively and
+no exit is ever priced from anything but the live tape.
+
+## Scoreboard weighting in the gate (Tue Nov 3, 2026)
+
+Executed selection now weighs what the gate prefers by proven
+record, inside the existing ODDS/JUDGE flow:
+
+- A bot's record counts once it has RECORD_MIN_CALLS (3) or more
+  completed live trades on THE BOARD. Its tier is +1 when its
+  aggregate paper P&L is positive, -1 when negative; unproven
+  bots (and exactly break even records) are tier 0 and adjust
+  nothing. Three is a deliberate ranking bar, far below the
+  city's 20 call research eligibility bar, which no bot met: the
+  weighting exists to order today's candidates, not to certify
+  anyone, and it benches nobody.
+- The EV adjustment is the bot's paper P&L per completed call
+  divided by RECORD_EV_SCALE ($50), clamped to plus or minus
+  RECORD_EV_CAP (1.5) EV points. A candidate with several source
+  bots inherits the mean adjustment; its tier is +1 only when
+  every recorded source is a winner, -1 only when every recorded
+  source is a loser, and 0 on a mix.
+- ODDS applies the adjustment to ev_score (the raw heuristic stays
+  on the row as heuristic_score, with record_tier and
+  record_ev_adj printed). JUDGE stamps the same fields on buy and
+  short candidates and orders its candidate lists by tier, then
+  adjustment, then its existing signal key. TREASURER already
+  funds top down by EV, so the preference reaches executed
+  selection with no allocator change.
+- The weighting only re-ranks. It never blocks a candidate, never
+  changes a budget cap, and never touches BOUNCER's vetoes.
+
 ## Validation and runtime
 
 ```sh
