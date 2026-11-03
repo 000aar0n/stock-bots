@@ -574,3 +574,22 @@ hand built fresh at that time, its rules drawn from the evidence
 of what is producing then: the proven bots, their winning logged
 causes, and the old JUDGE's scorecard of what it got wrong. No
 automatic generation, and no successor is prebuilt.
+
+## ADDENDUM (Tue Nov 3, 2026): HANDS approved live, wired behind rails
+
+Aaron approved flipping HANDS live ("Wire HANDS live", in chat,
+after an options card). htmw_client.py is now a gated execution
+client: complete gate records only (live logged call, JUDGE
+approval, BOUNCER non veto, ODDS positive EV, allocator budget,
+book tag) or documented Protected Momentum exits; caps recomputed
+from a fresh verified snapshot ($200k envelope, 25% single name,
+$15k buying power floor, $15k earnings cap, 50/50 book envelopes);
+a kill switch that defaults to halted; idempotency keys so no
+order can double submit; a full audit log; and an order history
+read back before anything is called placed. Two things still
+stand between wired and placing: Aaron must supply the HTMW
+password for script use (the vault copy serves the browser sign
+in agent only and cannot be exported to a script), and the trade
+ticket selectors need their supervised confirmation run. Until
+both are done, sessions keep placing and verifying orders through
+the browser. Full status: OPERATIONS.md, "HANDS live status".

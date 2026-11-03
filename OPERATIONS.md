@@ -44,8 +44,73 @@ risk/budget disagreement stop the action list. Hardcoded Friday fixtures are
 only build-day demonstrations, never used by `run_city.py`. Candidate lists are
 PROPOSALS. Muse verifies the news/earnings restrictions, account state, and every
 executed order in HTMW. The runner never turns shadow recommendations into fills.
-HANDS remains a dry-run skeleton; no claim of a newly activated execution bridge
-is made. Keep the existing browser sessions responsible for execution.
+HANDS was a dry-run skeleton until Tue Nov 3, 2026. It is now wired
+behind the rails in the section below, but it cannot place an order
+yet: the script credential step in that section is outstanding, so
+browser sessions remain responsible for execution until it is done.
+
+## HANDS live status (Tue Nov 3, 2026, Aaron's approval)
+
+Aaron approved flipping HANDS live in chat on Tue Nov 3, 2026
+("Wire HANDS live", after tapping the option on a card). That was
+the explicit approval the skeleton required. HANDS
+(htmw_client.py) is now a gated execution client:
+
+- Mechanism: no HTMW API exists. HANDS drives the real site with
+  Playwright (login -> quote page -> trade ticket -> order history
+  read back). Dry run remains the default posture.
+- An order is placed only through execute_order() and only with a
+  complete gate record: a live bot call in output/calls.jsonl,
+  JUDGE approval, BOUNCER non veto, ODDS positive EV, allocator
+  budget, book tag LONG or DAY; or a documented protective exit
+  naming its Protected Momentum rule.
+- HANDS recomputes the caps itself from a fresh verified snapshot
+  (at most 300 seconds old): $200k gross envelope, 25% single name
+  cap, $15k buying power reserve floor, $15k earnings cap on LONG
+  entries inside the earnings window, per book envelopes split
+  50/50 with no cross book borrowing.
+- Kill switch: output/hands_control.json must exist, parse and
+  carry enabled: true, checked before every order. A
+  output/hands.kill file, a missing file, or unreadable JSON all
+  mean HALTED. Nothing ships with the control file enabled; a
+  session creates it deliberately per run.
+- Idempotency: output/hands_ledger.jsonl keys every order from its
+  gate record and the session date. A key already submitting,
+  submitted or filled is refused, never resubmitted.
+- Audit: every attempt, placed or refused, appends to
+  output/hands_audit.jsonl. A submission counts as placed only
+  after the order is read back in Order History.
+- Live submission additionally requires HANDS_LIVE=1 and
+  HTMW_HANDS_SUPERVISED=1 in the run environment.
+
+BLOCKER, stated plainly (verified Nov 3): credentials for script
+use. The client reads HTMW_USER / HTMW_PASS from environment
+variables only. The Secure Vault copy of the HTMW login serves the
+Muse browser's sign in agent, and no tool exports vault values to
+a script (1Password is browser only too). What Aaron must do:
+supply the HTMW password for script use once, through the secure
+entry the main agent presents, so HTMW_USER and HTMW_PASS can be
+set in the environment that runs HANDS. Until then live mode
+refuses with exactly that reason, and the trade ticket selectors
+(which were never verified against the live site) still need
+their supervised confirmation run. First live consumer once both
+are done: the Wednesday Nov 4, 9:35 a.m. election reaction session,
+placing only a gate passed order while the session verifies the
+fill independently.
+
+Session integration (recorded Nov 3; the Wednesday one off job
+body carries the HANDS paragraph, the six recurring bodies do not
+yet): a session may route a gate passed order through HANDS only
+when (1) HTMW_USER and HTMW_PASS are set in its environment,
+(2) it writes a fresh verified snapshot and assembles the gate
+record with `htmw_client.py prepare`, (3) it creates
+output/hands_control.json with enabled: true for that run and
+removes it (or the kill file decision) when done, (4) it runs
+execute with HANDS_LIVE=1 and HTMW_HANDS_SUPERVISED=1, and
+(5) it verifies the fill in Order History itself before reporting,
+exactly as for a hand placed order. When any of that is
+unavailable, the session places the order by hand through the
+browser, as before. HANDS never replaces session verification.
 
 ## COURIER delivery
 
