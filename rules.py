@@ -329,56 +329,59 @@ def evaluate(snapshot, scan, day_change_pct=None, protect_lift=False):
     decisions["arb_candidates"] = arb
 
     # --- buy candidates, each paired with its loss plan (Aaron's
-    # steering: loss side first, entries second). A candidate is a
-    # scanned name outside the book flagged turning_up and NOT
-    # falling_knife. Falling knife names are never candidates.
+    # steering: loss side first, entries second). Two sources:
+    # (1) scanned names outside the book flagged turning_up and NOT
+    # falling_knife; (2) ODDS ranked names: names ODDS scores at a
+    # positive expected value even when the daily turning_up flag
+    # has not fired (added Tue Nov 3, 2026 on Aaron's direct order:
+    # the old single source meant ODDS's top ranked name could
+    # never become a JUDGE candidate; on Mon Nov 2 ODDS ranked CPRI
+    # first at +21.9 EV and CPRI never reached this list).
+    # Falling knife names are never candidates from either source.
     latency_syms = {c["symbol"] for c in scan.get("latency_candidates", [])}
-    cands = []
-    for sym, s in syms.items():
-        if sym in snapshot["positions"]:
-            continue
-        t = s.get("ta") or {}
-        if not t.get("turning_up") or t.get("falling_knife"):
-            continue
+    # The blocked / protect state is symbol independent, so it is
+    # computed once and shared by both candidate sources.
+    blocked_reasons = []
+    if brake_state == "unknown":
+        blocked_reasons.append("day change unavailable: daily brake cannot be verified")
+    if bp is None or bp < BUYING_POWER_FLOOR:
+        blocked_reasons.append("buying power reserve unavailable or below floor")
+    if gross >= TOTAL_ENVELOPE:
+        blocked_reasons.append("gross envelope full")
+    protect_engaged = decisions["protect_capped"]
+    if protect_engaged and brake_state in ("brake", "full"):
+        # The emergency stop survives the Nov 2 loosening:
+        # PROTECT alone only caps size, but PROTECT plus a
+        # tripped daily brake (day at or below -4%) still
+        # fully blocks new momentum entries.
+        blocked_reasons.append(
+            "PROTECT mode plus daily brake: entries fully "
+            "blocked (emergency stop)")
+    if brake_state == "full":
+        blocked_reasons.append(
+            "daily brake FULL: no new positions, no redeploy today")
+    elif brake_state == "brake":
+        blocked_reasons.append(
+            "daily brake: no new positions, rotations into strength only")
+    is_blocked = bool(blocked_reasons)
+    # Capped, not blocked: PROTECT is engaged and nothing else
+    # stopped this candidate, so it stays actionable and the
+    # allocator funds it at half size (0.5x).
+    protect_capped = bool(protect_engaged and not is_blocked)
+    if decisions["protect_mode"] and protect_lifted:
+        # The lift replaces the PROTECT cap: the candidate is
+        # blocked only if some OTHER reason above fired, and the
+        # reason list notes the lift instead of the cap.
+        blocked_reasons = blocked_reasons + [
+            "PROTECT lifted by documented session order"]
+    if protect_reset:
+        blocked_reasons = blocked_reasons + [
+            "PROTECT cleared: green close reset"]
+
+    def _candidate(sym, s, source, ev_score=None):
         last = s["last_close"]
-        blocked_reasons = []
-        if brake_state == "unknown":
-            blocked_reasons.append("day change unavailable: daily brake cannot be verified")
-        if bp is None or bp < BUYING_POWER_FLOOR:
-            blocked_reasons.append("buying power reserve unavailable or below floor")
-        if gross >= TOTAL_ENVELOPE:
-            blocked_reasons.append("gross envelope full")
-        protect_engaged = decisions["protect_capped"]
-        if protect_engaged and brake_state in ("brake", "full"):
-            # The emergency stop survives the Nov 2 loosening:
-            # PROTECT alone only caps size, but PROTECT plus a
-            # tripped daily brake (day at or below -4%) still
-            # fully blocks new momentum entries.
-            blocked_reasons.append(
-                "PROTECT mode plus daily brake: entries fully "
-                "blocked (emergency stop)")
-        if brake_state == "full":
-            blocked_reasons.append(
-                "daily brake FULL: no new positions, no redeploy today")
-        elif brake_state == "brake":
-            blocked_reasons.append(
-                "daily brake: no new positions, rotations into strength only")
-        is_blocked = bool(blocked_reasons)
-        # Capped, not blocked: PROTECT is engaged and nothing else
-        # stopped this candidate, so it stays actionable and the
-        # allocator funds it at half size (0.5x).
-        protect_capped = bool(protect_engaged and not is_blocked)
-        if decisions["protect_mode"] and protect_lifted:
-            # The lift replaces the PROTECT cap: the candidate is
-            # blocked only if some OTHER reason above fired, and the
-            # reason list notes the lift instead of the cap.
-            blocked_reasons = blocked_reasons + [
-                "PROTECT lifted by documented session order"]
-        if protect_reset:
-            blocked_reasons = blocked_reasons + [
-                "PROTECT cleared: green close reset"]
         is_latency = sym in latency_syms
-        cands.append({
+        cand = {
             "symbol": sym, "last_close": last,
             "chg_5d_pct": s.get("chg_5d_pct"),
             "exit_price": round(last * 0.92, 2),
@@ -392,13 +395,65 @@ def evaluate(snapshot, scan, day_change_pct=None, protect_lift=False):
             "protect_reset": protect_reset,
             "protect_capped": protect_capped,
             "blocked": is_blocked,
-            "blocked_reasons": blocked_reasons,
+            "blocked_reasons": list(blocked_reasons),
             "latency_candidate": is_latency,
             "verification": (
                 "latency candidate: verify against the price HTMW "
                 "displays before any order" if is_latency else None),
-        })
+            "candidate_source": source,
+        }
+        if ev_score is not None:
+            cand["ev_score"] = ev_score
+        return cand
+
+    cands = []
+    for sym, s in syms.items():
+        if sym in snapshot["positions"]:
+            continue
+        t = s.get("ta") or {}
+        if not t.get("turning_up") or t.get("falling_knife"):
+            continue
+        cands.append(_candidate(sym, s, "turning_up"))
     cands.sort(key=lambda c: -(c["chg_5d_pct"] or 0))
+
+    # ODDS ranked extras, best EV first. When at least two qualify,
+    # two of the eight candidate slots are reserved for them, so an
+    # ODDS top name can reach JUDGE even on a day when eight names
+    # are flagged turning_up; otherwise they fill unused slots and
+    # turning_up names backfill. Same blocked state, same caps,
+    # same loss plan; BOUNCER still cross checks and the allocator
+    # still sizes.
+    have = {c["symbol"] for c in cands}
+    extras = []
+    try:
+        import odds as odds_mod
+        try:
+            import earnings_bot
+            earn_rows = {r["ticker"]: r
+                         for r in earnings_bot.evaluate()}
+        except Exception:  # noqa: BLE001
+            earn_rows = {}
+        scored = []
+        for sym, s in syms.items():
+            if sym in snapshot["positions"] or sym in have:
+                continue
+            t = s.get("ta") or {}
+            if t.get("falling_knife"):
+                continue
+            row = odds_mod.score_candidate(sym, s, earn_rows)
+            if row["ev_score"] > 0:
+                scored.append((row["ev_score"], sym, s))
+        scored.sort(key=lambda x: -x[0])
+        extras = [_candidate(sym, s, "odds_ranked", ev_score=ev)
+                  for ev, sym, s in scored]
+    except Exception:  # noqa: BLE001
+        extras = []
+    if len(extras) >= 2:
+        merged = cands[:6] + extras[:2]
+        merged += [c for c in cands[6:] if c not in merged][:8 - len(merged)]
+        cands = merged
+    else:
+        cands = (cands + extras)[:8]
     decisions["buy_candidates"] = cands[:8]
     decisions["falling_knife_names"] = sorted(
         sym for sym, s in syms.items()

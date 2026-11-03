@@ -339,6 +339,35 @@ def shadow_view(cache, sym):
             "basis": "daily mean reversion"}
 
 
+SAME_DAY_EXIT_MIN_ADVERSE_PCT = 3.0
+
+
+def _exit_blocked_same_day(entry, exit_price, today=None):
+    """True when a falling knife exit would churn a position opened
+    today. Review evidence (Tue Nov 3, 2026): the SNIPER family
+    closed 65 paper round trips for -$3,328.77, most at exactly -$30
+    per trade (modeled costs only), because a 5 minute falling_knife
+    flag fired minutes after a 5 minute turning_up entry and closed
+    the trade at the entry price; SHADOW showed the same pattern
+    (-$8,364.06 over 93 completed). A knife exit on a same day entry
+    now needs a real adverse move (>= 3% against the entry, on the
+    way to the -8% stop); positions held overnight exit freely, and
+    an exit with no logged entry is never blocked by this guard."""
+    if not entry or not exit_price:
+        return False
+    ts = str(entry.get("ts") or "")
+    if ts[:10] != (today or date.today()).isoformat():
+        return False
+    entry_price = entry.get("entry_price")
+    if not entry_price:
+        return False
+    if entry.get("side") == "short":
+        adverse = (exit_price / entry_price - 1.0) * 100.0
+    else:
+        adverse = (entry_price - exit_price) / entry_price * 100.0
+    return adverse < SAME_DAY_EXIT_MIN_ADVERSE_PCT
+
+
 # ---------------------------------------------------------------- runner
 
 def run_digest(registry, log_calls=False):
@@ -346,9 +375,17 @@ def run_digest(registry, log_calls=False):
     bots = {b["name"]: b for b in registry["bots"]}
     active = [b for b in registry["bots"] if not b["benched"]]
     opens = set()
+    open_info = {}
     if log_calls:
         from leaderboard import load_calls, open_positions
-        opens = open_positions(load_calls())
+        all_calls = load_calls()
+        opens = open_positions(all_calls)
+        for c in all_calls:
+            key = (c["bot"], c["ticker"])
+            if c["side"] in ("buy", "short"):
+                open_info[key] = c
+            elif c["side"] == "exit":
+                open_info.pop(key, None)
     lines = []
     calls_made = [0]
 
@@ -365,14 +402,21 @@ def run_digest(registry, log_calls=False):
         bars = cache.intra(ticker)
         if not bars:
             return
+        if side == "exit" and _exit_blocked_same_day(
+                open_info.get(key), bars[-1]["close"]):
+            return
         saved = log_call(bot, ticker, side, bars[-1]["close"], reason, bar_id=str(bars[-1]["ts"]))
         if saved is None:
             return
         calls_made[0] += 1
         if side in ("buy", "short"):
             opens.add(key)
+            open_info[key] = {"entry_price": bars[-1]["close"],
+                              "ts": datetime.now().isoformat(),
+                              "side": side}
         else:
             opens.discard(key)
+            open_info.pop(key, None)
 
     # Thermometers first: regime context for everyone else.
     core = scanner.CORE_INTRADAY
